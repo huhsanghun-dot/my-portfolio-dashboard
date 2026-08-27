@@ -1,4 +1,5 @@
 import { AssetChart } from './components/AssetChart'
+import { CategoryDonutChart } from './components/CategoryDonutChart'
 import { HoldingForm } from './components/HoldingForm'
 import { HoldingsList } from './components/HoldingsList'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -24,6 +25,9 @@ function App() {
   } = usePortfolio()
 
   const missingApiKey = holdings.some((h) => h.type === 'US_STOCK') && !settings.alphaVantageApiKey
+  const existingCategories = [...new Set(holdings.map((h) => h.category?.trim()).filter((c): c is string => !!c))].sort(
+    (a, b) => a.localeCompare(b),
+  )
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -53,10 +57,13 @@ function App() {
           onRefresh={refreshAll}
         />
 
-        <AssetChart snapshots={snapshots} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <AssetChart snapshots={snapshots} />
+          <CategoryDonutChart holdings={holdings} prices={prices} fxRate={fxRate} />
+        </div>
 
         <div className="flex flex-col gap-3">
-          <HoldingForm onAdd={addHolding} />
+          <HoldingForm onAdd={addHolding} existingCategories={existingCategories} />
           <HoldingsList holdings={holdings} prices={prices} fxRate={fxRate} onUpdate={updateHolding} onRemove={removeHolding} />
         </div>
 

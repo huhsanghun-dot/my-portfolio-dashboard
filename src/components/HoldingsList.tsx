@@ -1,6 +1,7 @@
+import { useMemo, useState } from 'react'
 import type { Holding, PriceInfo } from '../types'
-import { effectivePrice } from '../hooks/usePortfolio'
 import { formatKRW, formatNumber, formatPercent, formatUSD } from '../lib/format'
+import { deriveAllHoldings, groupByCategory, type DerivedHolding } from '../lib/portfolioMath'
 
 interface Props {
   holdings: Holding[]
@@ -16,22 +17,17 @@ const TYPE_LABEL: Record<Holding['type'], string> = {
   KR_ETF: '국내ETF',
 }
 
-function useDerived(h: Holding, info: PriceInfo | undefined, fxRate: number) {
-  const price = effectivePrice(h, info)
-  const currentValueNative = price != null ? price * h.quantity : null
-  const costNative = h.avgBuyPrice * h.quantity
-  const currentValueKRW = currentValueNative != null ? (h.currency === 'USD' ? currentValueNative * fxRate : currentValueNative) : null
-  const costKRW = h.currency === 'USD' ? costNative * fxRate : costNative
-  const pnlKRW = currentValueKRW != null ? currentValueKRW - costKRW : null
-  const pnlPercent = pnlKRW != null && costKRW > 0 ? (pnlKRW / costKRW) * 100 : null
-  return { price, currentValueKRW, pnlKRW, pnlPercent }
-}
-
 function formatNative(value: number, currency: Holding['currency']) {
   return currency === 'USD' ? formatUSD(value) : formatKRW(value)
 }
 
 export function HoldingsList({ holdings, prices, fxRate, onUpdate, onRemove }: Props) {
+  const [grouped, setGrouped] = useState(false)
+
+  const derivedList = useMemo(() => deriveAllHoldings(holdings, prices, fxRate), [holdings, prices, fxRate])
+  const grandTotalKRW = derivedList.reduce((sum, d) => sum + (d.currentValueKRW ?? 0), 0)
+  const groups = useMemo(() => groupByCategory(derivedList), [derivedList])
+
   if (holdings.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-800 p-8 text-center text-sm text-slate-500">
@@ -42,6 +38,26 @@ export function HoldingsList({ holdings, prices, fxRate, onUpdate, onRemove }: P
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60">
+      <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2.5">
+        <span className="text-sm font-medium text-slate-300">보유 자산</span>
+        <div className="flex gap-1 rounded-lg border border-slate-800 p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setGrouped(false)}
+            className={`rounded-md px-2.5 py-1 transition ${!grouped ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+          >
+            전체
+          </button>
+          <button
+            type="button"
+            onClick={() => setGrouped(true)}
+            className={`rounded-md px-2.5 py-1 transition ${grouped ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+          >
+            카테고리별
+          </button>
+        </div>
+      </div>
+
       {/* Desktop / tablet-landscape table */}
       <div className="hidden overflow-x-auto lg:block">
         <table className="w-full text-sm">
@@ -56,48 +72,75 @@ export function HoldingsList({ holdings, prices, fxRate, onUpdate, onRemove }: P
               <th className="px-4 py-3 font-medium" />
             </tr>
           </thead>
-          <tbody>
-            {holdings.map((h) => (
-              <HoldingRow
-                key={h.id}
-                h={h}
-                info={prices[h.id]}
-                fxRate={fxRate}
-                onUpdate={onUpdate}
-                onRemove={onRemove}
-                variant="row"
-              />
-            ))}
-          </tbody>
+          {grouped ? (
+            groups.map((g) => (
+              <tbody key={g.label}>
+                <tr className="border-b border-slate-800/60 bg-slate-950/50">
+                  <td colSpan={7} className="px-4 py-2 text-xs">
+                    <span className="font-medium text-slate-200">{g.label}</span>
+                    <span className="ml-2 text-slate-500">{g.items.length}개 종목</span>
+                    <span className="ml-3 text-slate-300">{formatKRW(g.subtotalKRW)}</span>
+                    {grandTotalKRW > 0 && (
+                      <span className="ml-1 text-slate-500">({((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%)</span>
+                    )}
+                  </td>
+                </tr>
+                {g.items.map((d) => (
+                  <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} variant="row" />
+                ))}
+              </tbody>
+            ))
+          ) : (
+            <tbody>
+              {derivedList.map((d) => (
+                <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} variant="row" />
+              ))}
+            </tbody>
+          )}
         </table>
       </div>
 
       {/* Mobile / tablet-portrait card list */}
-      <div className="flex flex-col gap-3 p-3 lg:hidden">
-        {holdings.map((h) => (
-          <HoldingRow key={h.id} h={h} info={prices[h.id]} fxRate={fxRate} onUpdate={onUpdate} onRemove={onRemove} variant="card" />
-        ))}
+      <div className="flex flex-col gap-4 p-3 lg:hidden">
+        {grouped
+          ? groups.map((g) => (
+              <div key={g.label} className="flex flex-col gap-2">
+                <div className="flex items-baseline justify-between px-1 text-xs">
+                  <span className="font-medium text-slate-200">
+                    {g.label} <span className="text-slate-500">· {g.items.length}개</span>
+                  </span>
+                  <span className="text-slate-400">
+                    {formatKRW(g.subtotalKRW)}
+                    {grandTotalKRW > 0 && (
+                      <span className="ml-1 text-slate-500">({((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%)</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {g.items.map((d) => (
+                    <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} variant="card" />
+                  ))}
+                </div>
+              </div>
+            ))
+          : derivedList.map((d) => <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} variant="card" />)}
       </div>
     </div>
   )
 }
 
 function HoldingRow({
-  h,
-  info,
-  fxRate,
+  d,
   onUpdate,
   onRemove,
   variant,
 }: {
-  h: Holding
-  info: PriceInfo | undefined
-  fxRate: number
+  d: DerivedHolding
   onUpdate: (id: string, patch: Partial<Holding>) => void
   onRemove: (id: string) => void
   variant: 'row' | 'card'
 }) {
-  const { price, currentValueKRW, pnlKRW, pnlPercent } = useDerived(h, info, fxRate)
+  const { h, info, price, currentValueKRW, pnlKRW, pnlPercent } = d
   const isUp = (pnlKRW ?? 0) >= 0
   const usedManual = info?.price == null && h.manualPrice != null
 
@@ -112,6 +155,16 @@ function HoldingRow({
       }}
       placeholder="수동 입력"
       className="w-24 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white placeholder:text-slate-600"
+    />
+  )
+
+  const categoryInput = (
+    <input
+      type="text"
+      value={h.category ?? ''}
+      onChange={(e) => onUpdate(h.id, { category: e.target.value === '' ? undefined : e.target.value })}
+      placeholder="카테고리 지정"
+      className="w-28 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white placeholder:text-slate-600"
     />
   )
 
@@ -156,9 +209,15 @@ function HoldingRow({
             </div>
           </div>
         </div>
-        <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-800 pt-2">
-          <span className="text-[11px] text-slate-500">수동 시세 (조회 실패 시 대체)</span>
-          {manualInput}
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-500">카테고리</span>
+            {categoryInput}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-500">수동 시세</span>
+            {manualInput}
+          </div>
         </div>
       </div>
     )
@@ -174,6 +233,7 @@ function HoldingRow({
             <div className="text-xs text-slate-500">{h.symbol}</div>
           </div>
         </div>
+        <div className="mt-1">{categoryInput}</div>
       </td>
       <td className="px-4 py-3 text-slate-300">{formatNumber(h.quantity)}</td>
       <td className="px-4 py-3 text-slate-300">{formatNative(h.avgBuyPrice, h.currency)}</td>

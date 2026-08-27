@@ -3,6 +3,7 @@ import type { AssetType, Currency, Holding } from '../types'
 
 interface Props {
   onAdd: (h: Omit<Holding, 'id'>) => void
+  existingCategories: string[]
 }
 
 const TYPE_LABEL: Record<AssetType, string> = {
@@ -23,12 +24,13 @@ const TYPE_SYMBOL_HINT: Record<AssetType, string> = {
   KR_ETF: '예: 133690 (KRX 종목코드)',
 }
 
-export function HoldingForm({ onAdd }: Props) {
+export function HoldingForm({ onAdd, existingCategories }: Props) {
   const [type, setType] = useState<AssetType>('US_STOCK')
   const [name, setName] = useState('')
   const [symbol, setSymbol] = useState('')
   const [quantity, setQuantity] = useState('')
   const [avgBuyPrice, setAvgBuyPrice] = useState('')
+  const [category, setCategory] = useState('')
   const [open, setOpen] = useState(false)
 
   const reset = () => {
@@ -36,6 +38,7 @@ export function HoldingForm({ onAdd }: Props) {
     setSymbol('')
     setQuantity('')
     setAvgBuyPrice('')
+    setCategory('')
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -51,6 +54,7 @@ export function HoldingForm({ onAdd }: Props) {
       quantity: qty,
       avgBuyPrice: price,
       currency: TYPE_DEFAULT_CURRENCY[type],
+      category: category.trim() || undefined,
     })
     reset()
     setOpen(false)
@@ -71,7 +75,7 @@ export function HoldingForm({ onAdd }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:grid-cols-2 lg:grid-cols-6"
+      className="grid grid-cols-2 gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:grid-cols-3 lg:grid-cols-6"
     >
       <label className="flex flex-col gap-1 text-xs text-slate-400 lg:col-span-1">
         구분
@@ -111,6 +115,22 @@ export function HoldingForm({ onAdd }: Props) {
       </label>
 
       <label className="flex flex-col gap-1 text-xs text-slate-400 lg:col-span-1">
+        카테고리 (선택)
+        <input
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder="예: QQQ"
+          list="category-suggestions"
+          className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white placeholder:text-slate-600"
+        />
+        <datalist id="category-suggestions">
+          {existingCategories.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+      </label>
+
+      <label className="flex flex-col gap-1 text-xs text-slate-400 lg:col-span-1">
         수량
         <input
           value={quantity}
@@ -136,10 +156,10 @@ export function HoldingForm({ onAdd }: Props) {
         />
       </label>
 
-      <div className="flex items-end gap-2 lg:col-span-1">
+      <div className="col-span-2 flex items-end gap-2 sm:col-span-3 lg:col-span-6">
         <button
           type="submit"
-          className="w-full rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-400"
+          className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400"
         >
           추가
         </button>

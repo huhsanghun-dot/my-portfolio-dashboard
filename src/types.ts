@@ -14,6 +14,8 @@ export interface Holding {
   currency: Currency
   /** User-entered price for KR ETFs (or as a fallback when auto price lookup fails). */
   manualPrice?: number
+  /** User-defined grouping label that can span asset types, e.g. "QQQ" for both QQQM and TIGER 미국나스닥100. */
+  category?: string
 }
 
 export interface PriceInfo {
