@@ -7,7 +7,6 @@ const KEYS = {
   transactions: 'pf-dashboard:transactions:v1',
   settings: 'pf-dashboard:settings:v1',
   snapshots: 'pf-dashboard:snapshots:v1',
-  alphaVantageUsage: 'pf-dashboard:av-usage:v1',
 } as const
 
 function readJSON<T>(key: string, fallback: T): T {
@@ -83,33 +82,8 @@ export function migrateLegacyHoldingsToTransactions(
   return merged
 }
 
-export interface ApiUsage {
-  /** yyyy-MM-dd, local date the count applies to. */
-  date: string
-  count: number
-}
-
-/**
- * Client-side tally of Alpha Vantage calls made today (local browser date). This is
- * only an estimate — Alpha Vantage's free tier doesn't expose remaining quota via
- * the API — but it's enough to warn the user before they burn through the daily cap.
- */
-export function loadAlphaVantageUsage(): ApiUsage {
-  const today = todayStr()
-  const stored = readJSON<ApiUsage>(KEYS.alphaVantageUsage, { date: today, count: 0 })
-  return stored.date === today ? stored : { date: today, count: 0 }
-}
-
-export function recordAlphaVantageCall(): ApiUsage {
-  const current = loadAlphaVantageUsage()
-  const next: ApiUsage = { date: current.date, count: current.count + 1 }
-  writeJSON(KEYS.alphaVantageUsage, next)
-  return next
-}
-
 const DEFAULT_SETTINGS: AppSettings = {
   finnhubApiKey: '',
-  alphaVantageApiKey: '',
 }
 
 export function loadSettings(): AppSettings {
