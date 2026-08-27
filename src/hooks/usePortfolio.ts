@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchUsStockPrice, RATE_LIMIT_ERROR } from '../lib/api/alphaVantage'
 import { fetchCryptoPrice } from '../lib/api/cryptoCom'
 import { fetchUsdToKrwRate, FALLBACK_USD_KRW } from '../lib/api/fx'
 import { fetchKrxPriceBestEffort } from '../lib/api/krx'
+import { fetchUsStockPriceWithFallback, RATE_LIMIT_ERROR } from '../lib/api/stockPrice'
 import { genId } from '../lib/id'
 import { computeAllHoldings, computePosition, todayStr, transactionsFor } from '../lib/positions'
 import {
@@ -20,11 +20,11 @@ import {
 } from '../lib/storage'
 import type { AppSettings, Holding, HoldingIdentity, PriceInfo, Snapshot, Transaction, TransactionAction } from '../types'
 
-const CRYPTO_REFRESH_MS = 60_000
-// Alpha Vantage's free tier only allows 25 calls/day total, so stocks refresh far
-// less often than crypto — a 60s cadence would blow the daily cap in minutes.
-const STOCK_REFRESH_MS = 30 * 60_000
-// After the API reports its quota is used up, stop hammering it (auto + manual) for a while.
+// Stocks (Yahoo Finance, key-less) and crypto (Crypto.com, key-less) both refresh on
+// this cadence — neither has a meaningful rate limit for personal use. Alpha Vantage
+// is only used as an occasional fallback when Yahoo fails, see lib/api/stockPrice.ts.
+const REFRESH_MS = 60_000
+// If that fallback reports it's rate-limited, stop calling it for a while (Yahoo keeps refreshing normally).
 const STOCK_COOLDOWN_MS = 6 * 60_000
 
 export function effectivePrice(holding: Holding, info: PriceInfo | undefined): number | null {
@@ -148,18 +148,19 @@ export function usePortfolio() {
   }, [])
 
   const refreshPricesFor = useCallback(async (targets: Holding[]) => {
-    // While cooling down from a rate-limit hit, silently drop stock targets from
-    // every refresh (auto or manual) instead of hammering Alpha Vantage further.
-    const cooling = stockCooldownRef.current != null && Date.now() < stockCooldownRef.current
-    const effectiveTargets = cooling ? targets.filter((h) => h.type !== 'US_STOCK') : targets
-    if (effectiveTargets.length === 0) return
+    if (targets.length === 0) return
+    // Only gates the Alpha Vantage fallback inside fetchUsStockPriceWithFallback —
+    // Yahoo Finance itself keeps refreshing normally even while this is true.
+    const avCoolingDown = stockCooldownRef.current != null && Date.now() < stockCooldownRef.current
 
     setRefreshing(true)
     try {
       const currentSettings = loadSettings()
       const results = await Promise.all(
-        effectiveTargets.map(async (h): Promise<[string, PriceInfo]> => {
-          if (h.type === 'US_STOCK') return [h.id, await fetchUsStockPrice(h.symbol, currentSettings.alphaVantageApiKey)]
+        targets.map(async (h): Promise<[string, PriceInfo]> => {
+          if (h.type === 'US_STOCK') {
+            return [h.id, await fetchUsStockPriceWithFallback(h.symbol, currentSettings.alphaVantageApiKey, avCoolingDown)]
+          }
           if (h.type === 'CRYPTO') return [h.id, await fetchCryptoPrice(h.symbol)]
           return [h.id, await fetchKrxPriceBestEffort(h.symbol)]
         }),
@@ -181,7 +182,7 @@ export function usePortfolio() {
         }),
       )
 
-      if (effectiveTargets.some((h) => h.type === 'US_STOCK')) {
+      if (targets.some((h) => h.type === 'US_STOCK')) {
         setAvUsage(loadAlphaVantageUsage())
         if (results.some(([, info]) => info.error === RATE_LIMIT_ERROR)) {
           setStockCooldownUntil(Date.now() + STOCK_COOLDOWN_MS)
@@ -209,23 +210,15 @@ export function usePortfolio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Crypto auto-refreshes frequently — its public API has no meaningful rate limit.
+  // Auto-refresh loop for stock/crypto (KRX is intentionally left to page-load + manual refresh).
   useEffect(() => {
     const interval = setInterval(() => {
-      void refreshPricesFor(holdingsRef.current.filter((h) => h.type === 'CRYPTO'))
+      const liveTargets = holdingsRef.current.filter((h) => h.type === 'US_STOCK' || h.type === 'CRYPTO')
+      void refreshPricesFor(liveTargets)
       void refreshFx()
-    }, CRYPTO_REFRESH_MS)
+    }, REFRESH_MS)
     return () => clearInterval(interval)
   }, [refreshPricesFor, refreshFx])
-
-  // Stocks refresh far less often (and back off further on a rate-limit hit) to stay
-  // inside Alpha Vantage's free-tier daily cap. KRX stays page-load + manual only.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      void refreshPricesFor(holdingsRef.current.filter((h) => h.type === 'US_STOCK'))
-    }, STOCK_REFRESH_MS)
-    return () => clearInterval(interval)
-  }, [refreshPricesFor])
 
   // Fetch prices for any newly-added holding right away.
   const knownIdsRef = useRef<Set<string>>(new Set())

@@ -24,10 +24,11 @@ export function SettingsPanel({ settings, onChange, avUsage }: Props) {
       </button>
       {open && (
         <div className="absolute right-0 top-10 z-10 w-80 max-w-[90vw] rounded-xl border border-slate-700 bg-slate-900 p-4 shadow-xl">
-          <h3 className="text-sm font-medium text-white">Alpha Vantage API 키</h3>
+          <h3 className="text-sm font-medium text-white">Alpha Vantage API 키 (보조, 선택)</h3>
           <p className="mt-1 text-xs text-slate-400">
-            해외 주식 시세 조회에 사용됩니다. 이 키는 이 브라우저의 localStorage에만 저장되며 서버로 전송되지
-            않습니다.{' '}
+            해외 주식 시세는 기본적으로 키 없이 Yahoo Finance로 조회됩니다. 이 키는 Yahoo 조회가 실패할 때만
+            보조로 사용되는 백업이에요 — 없어도 정상 동작합니다. 입력하면 이 브라우저의 localStorage에만
+            저장되며 서버로 전송되지 않습니다.{' '}
             <a
               href="https://www.alphavantage.co/support/#api-key"
               target="_blank"
@@ -46,7 +47,7 @@ export function SettingsPanel({ settings, onChange, avUsage }: Props) {
 
           <div className="mt-3">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">오늘 호출 사용량 (추정)</span>
+              <span className="text-slate-400">오늘 백업 호출 사용량 (추정)</span>
               <span
                 className={
                   avUsage.count >= ALPHA_VANTAGE_DAILY_LIMIT

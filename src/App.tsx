@@ -30,7 +30,6 @@ function App() {
   } = usePortfolio()
 
   const hasStocks = holdings.some((h) => h.type === 'US_STOCK')
-  const missingApiKey = hasStocks && !settings.alphaVantageApiKey
   const stockCooldownActive = hasStocks && stockCooldownUntil != null && Date.now() < stockCooldownUntil
   const stockCooldownMinutesLeft = stockCooldownActive ? Math.ceil((stockCooldownUntil! - Date.now()) / 60_000) : 0
   const existingCategories = [...new Set(holdings.map((h) => h.category?.trim()).filter((c): c is string => !!c))].sort(
@@ -50,16 +49,10 @@ function App() {
       </header>
 
       <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6">
-        {missingApiKey && (
-          <div className="rounded-xl border border-amber-800/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
-            해외 주식 시세를 자동으로 불러오려면 우측 상단 설정에서 Alpha Vantage API 키를 입력하세요.
-          </div>
-        )}
-
         {stockCooldownActive && (
           <div className="rounded-xl border border-amber-800/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
-            Alpha Vantage 호출 한도를 초과해서 해외 주식 갱신을 약 {stockCooldownMinutesLeft}분간 쉬어갑니다
-            (자동으로 재개됩니다). 우측 상단 설정에서 오늘 사용량을 확인할 수 있어요.
+            보조 시세 소스(Alpha Vantage)의 호출 한도를 초과해서 약 {stockCooldownMinutesLeft}분간 쉬어갑니다
+            (자동으로 재개됩니다). 기본 시세 소스는 영향 없이 계속 갱신됩니다.
           </div>
         )}
 
