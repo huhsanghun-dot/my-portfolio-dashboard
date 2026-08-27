@@ -1,4 +1,9 @@
+import { recordAlphaVantageCall } from '../storage'
 import type { PriceInfo } from '../../types'
+
+/** Alpha Vantage's free tier returns a 200 with a Note/Information field instead of an HTTP error when its request quota (25/day, 5/min) is used up. */
+export const RATE_LIMIT_ERROR = '호출 한도 초과 (잠시 후 재시도)'
+export const ALPHA_VANTAGE_DAILY_LIMIT = 25
 
 interface GlobalQuoteResponse {
   'Global Quote'?: {
@@ -23,6 +28,7 @@ export async function fetchUsStockPrice(symbol: string, apiKey: string): Promise
   )}&apikey=${encodeURIComponent(apiKey)}`
 
   try {
+    recordAlphaVantageCall()
     const res = await fetch(url)
     if (!res.ok) {
       return { price: null, changePercent: null, updatedAt: null, source: 'none', error: `HTTP ${res.status}` }
@@ -35,7 +41,7 @@ export async function fetchUsStockPrice(symbol: string, apiKey: string): Promise
         changePercent: null,
         updatedAt: null,
         source: 'none',
-        error: '호출 한도 초과 (잠시 후 재시도)',
+        error: RATE_LIMIT_ERROR,
       }
     }
 
