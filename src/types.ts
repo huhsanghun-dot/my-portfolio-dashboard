@@ -54,5 +54,6 @@ export interface Snapshot {
 }
 
 export interface AppSettings {
+  finnhubApiKey: string
   alphaVantageApiKey: string
 }

@@ -26,12 +26,20 @@ function App() {
     totalCostKRW,
     snapshots,
     avUsage,
-    stockCooldownUntil,
+    finnhubCooldownUntil,
+    avCooldownUntil,
   } = usePortfolio()
 
   const hasStocks = holdings.some((h) => h.type === 'US_STOCK')
-  const stockCooldownActive = hasStocks && stockCooldownUntil != null && Date.now() < stockCooldownUntil
-  const stockCooldownMinutesLeft = stockCooldownActive ? Math.ceil((stockCooldownUntil! - Date.now()) / 60_000) : 0
+  const now = Date.now()
+  const cooldownMessages = [
+    hasStocks && finnhubCooldownUntil != null && now < finnhubCooldownUntil
+      ? `Finnhub 호출 한도를 초과해서 약 ${Math.ceil((finnhubCooldownUntil - now) / 60_000)}분간 쉬어갑니다.`
+      : null,
+    hasStocks && avCooldownUntil != null && now < avCooldownUntil
+      ? `Alpha Vantage 호출 한도를 초과해서 약 ${Math.ceil((avCooldownUntil - now) / 60_000)}분간 쉬어갑니다.`
+      : null,
+  ].filter((m): m is string => m != null)
   const existingCategories = [...new Set(holdings.map((h) => h.category?.trim()).filter((c): c is string => !!c))].sort(
     (a, b) => a.localeCompare(b),
   )
@@ -49,10 +57,9 @@ function App() {
       </header>
 
       <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6">
-        {stockCooldownActive && (
+        {cooldownMessages.length > 0 && (
           <div className="rounded-xl border border-amber-800/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
-            보조 시세 소스(Alpha Vantage)의 호출 한도를 초과해서 약 {stockCooldownMinutesLeft}분간 쉬어갑니다
-            (자동으로 재개됩니다). 기본 시세 소스는 영향 없이 계속 갱신됩니다.
+            {cooldownMessages.join(' ')} 자동으로 재개되며, 다른 시세 소스는 영향 없이 계속 갱신됩니다.
           </div>
         )}
 

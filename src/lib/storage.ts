@@ -108,6 +108,7 @@ export function recordAlphaVantageCall(): ApiUsage {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
+  finnhubApiKey: '',
   alphaVantageApiKey: '',
 }
 

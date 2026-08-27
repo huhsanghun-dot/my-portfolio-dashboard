@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchCryptoPrice } from '../lib/api/cryptoCom'
 import { fetchUsdToKrwRate, FALLBACK_USD_KRW } from '../lib/api/fx'
 import { fetchKrxPriceBestEffort } from '../lib/api/krx'
-import { fetchUsStockPriceWithFallback, RATE_LIMIT_ERROR } from '../lib/api/stockPrice'
+import { AV_RATE_LIMIT_ERROR, FINNHUB_RATE_LIMIT_ERROR, fetchUsStockPriceWithFallback } from '../lib/api/stockPrice'
 import { genId } from '../lib/id'
 import { computeAllHoldings, computePosition, todayStr, transactionsFor } from '../lib/positions'
 import {
@@ -20,12 +20,12 @@ import {
 } from '../lib/storage'
 import type { AppSettings, Holding, HoldingIdentity, PriceInfo, Snapshot, Transaction, TransactionAction } from '../types'
 
-// Stocks (Yahoo Finance, key-less) and crypto (Crypto.com, key-less) both refresh on
-// this cadence — neither has a meaningful rate limit for personal use. Alpha Vantage
-// is only used as an occasional fallback when Yahoo fails, see lib/api/stockPrice.ts.
+// Stocks and crypto both refresh on this cadence. Stocks go through an ordered
+// fallback chain (Yahoo -> Finnhub -> Alpha Vantage, see lib/api/stockPrice.ts);
+// a rate-limited tier backs off independently without blocking the others.
 const REFRESH_MS = 60_000
-// If that fallback reports it's rate-limited, stop calling it for a while (Yahoo keeps refreshing normally).
-const STOCK_COOLDOWN_MS = 6 * 60_000
+const FINNHUB_COOLDOWN_MS = 90_000
+const AV_COOLDOWN_MS = 6 * 60_000
 
 export function effectivePrice(holding: Holding, info: PriceInfo | undefined): number | null {
   if (info?.price != null) return info.price
@@ -66,15 +66,18 @@ export function usePortfolio() {
   const [refreshing, setRefreshing] = useState(false)
   const [snapshots, setSnapshots] = useState<Snapshot[]>(() => loadSnapshots())
   const [avUsage, setAvUsage] = useState<ApiUsage>(() => loadAlphaVantageUsage())
-  const [stockCooldownUntil, setStockCooldownUntil] = useState<number | null>(null)
+  const [finnhubCooldownUntil, setFinnhubCooldownUntil] = useState<number | null>(null)
+  const [avCooldownUntil, setAvCooldownUntil] = useState<number | null>(null)
 
   const holdings = useMemo(() => computeAllHoldings(identities, transactions), [identities, transactions])
   const holdingsRef = useRef(holdings)
   holdingsRef.current = holdings
   const transactionsRef = useRef(transactions)
   transactionsRef.current = transactions
-  const stockCooldownRef = useRef(stockCooldownUntil)
-  stockCooldownRef.current = stockCooldownUntil
+  const finnhubCooldownRef = useRef(finnhubCooldownUntil)
+  finnhubCooldownRef.current = finnhubCooldownUntil
+  const avCooldownRef = useRef(avCooldownUntil)
+  avCooldownRef.current = avCooldownUntil
 
   useEffect(() => saveHoldingIdentities(identities), [identities])
   useEffect(() => saveTransactions(transactions), [transactions])
@@ -149,9 +152,10 @@ export function usePortfolio() {
 
   const refreshPricesFor = useCallback(async (targets: Holding[]) => {
     if (targets.length === 0) return
-    // Only gates the Alpha Vantage fallback inside fetchUsStockPriceWithFallback —
-    // Yahoo Finance itself keeps refreshing normally even while this is true.
-    const avCoolingDown = stockCooldownRef.current != null && Date.now() < stockCooldownRef.current
+    // Only gate the relevant fallback tier inside fetchUsStockPriceWithFallback —
+    // Yahoo Finance (and any non-cooling-down tier) keeps refreshing normally.
+    const finnhubCoolingDown = finnhubCooldownRef.current != null && Date.now() < finnhubCooldownRef.current
+    const avCoolingDown = avCooldownRef.current != null && Date.now() < avCooldownRef.current
 
     setRefreshing(true)
     try {
@@ -159,7 +163,16 @@ export function usePortfolio() {
       const results = await Promise.all(
         targets.map(async (h): Promise<[string, PriceInfo]> => {
           if (h.type === 'US_STOCK') {
-            return [h.id, await fetchUsStockPriceWithFallback(h.symbol, currentSettings.alphaVantageApiKey, avCoolingDown)]
+            return [
+              h.id,
+              await fetchUsStockPriceWithFallback({
+                symbol: h.symbol,
+                finnhubApiKey: currentSettings.finnhubApiKey,
+                avApiKey: currentSettings.alphaVantageApiKey,
+                finnhubCoolingDown,
+                avCoolingDown,
+              }),
+            ]
           }
           if (h.type === 'CRYPTO') return [h.id, await fetchCryptoPrice(h.symbol)]
           return [h.id, await fetchKrxPriceBestEffort(h.symbol)]
@@ -184,8 +197,11 @@ export function usePortfolio() {
 
       if (targets.some((h) => h.type === 'US_STOCK')) {
         setAvUsage(loadAlphaVantageUsage())
-        if (results.some(([, info]) => info.error === RATE_LIMIT_ERROR)) {
-          setStockCooldownUntil(Date.now() + STOCK_COOLDOWN_MS)
+        if (results.some(([, info]) => info.error === FINNHUB_RATE_LIMIT_ERROR)) {
+          setFinnhubCooldownUntil(Date.now() + FINNHUB_COOLDOWN_MS)
+        }
+        if (results.some(([, info]) => info.error === AV_RATE_LIMIT_ERROR)) {
+          setAvCooldownUntil(Date.now() + AV_COOLDOWN_MS)
         }
       }
     } finally {
@@ -274,6 +290,7 @@ export function usePortfolio() {
     totalCostKRW,
     snapshots,
     avUsage,
-    stockCooldownUntil,
+    finnhubCooldownUntil,
+    avCooldownUntil,
   }
 }
