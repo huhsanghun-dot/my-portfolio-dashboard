@@ -1,14 +1,20 @@
 import { useMemo, useState } from 'react'
-import type { Holding, PriceInfo } from '../types'
+import type { NewTransactionInput } from '../hooks/usePortfolio'
 import { formatKRW, formatNumber, formatPercent, formatUSD } from '../lib/format'
 import { deriveAllHoldings, groupByCategory, type DerivedHolding } from '../lib/portfolioMath'
+import { transactionsFor } from '../lib/positions'
+import type { Holding, HoldingIdentity, PriceInfo, Transaction } from '../types'
+import { TransactionModal } from './TransactionModal'
 
 interface Props {
   holdings: Holding[]
   prices: Record<string, PriceInfo>
   fxRate: number
-  onUpdate: (id: string, patch: Partial<Holding>) => void
+  transactions: Transaction[]
+  onUpdate: (id: string, patch: Partial<HoldingIdentity>) => void
   onRemove: (id: string) => void
+  onAddTransaction: (holdingId: string, input: NewTransactionInput) => string | null
+  onRemoveTransaction: (transactionId: string) => void
 }
 
 const TYPE_LABEL: Record<Holding['type'], string> = {
@@ -21,12 +27,23 @@ function formatNative(value: number, currency: Holding['currency']) {
   return currency === 'USD' ? formatUSD(value) : formatKRW(value)
 }
 
-export function HoldingsList({ holdings, prices, fxRate, onUpdate, onRemove }: Props) {
+export function HoldingsList({
+  holdings,
+  prices,
+  fxRate,
+  transactions,
+  onUpdate,
+  onRemove,
+  onAddTransaction,
+  onRemoveTransaction,
+}: Props) {
   const [grouped, setGrouped] = useState(false)
+  const [openTxnHoldingId, setOpenTxnHoldingId] = useState<string | null>(null)
 
   const derivedList = useMemo(() => deriveAllHoldings(holdings, prices, fxRate), [holdings, prices, fxRate])
   const grandTotalKRW = derivedList.reduce((sum, d) => sum + (d.currentValueKRW ?? 0), 0)
   const groups = useMemo(() => groupByCategory(derivedList), [derivedList])
+  const openTxnHolding = openTxnHoldingId != null ? holdings.find((h) => h.id === openTxnHoldingId) : undefined
 
   if (holdings.length === 0) {
     return (
@@ -86,14 +103,14 @@ export function HoldingsList({ holdings, prices, fxRate, onUpdate, onRemove }: P
                   </td>
                 </tr>
                 {g.items.map((d) => (
-                  <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} variant="row" />
+                  <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} onOpenTransactions={setOpenTxnHoldingId} variant="row" />
                 ))}
               </tbody>
             ))
           ) : (
             <tbody>
               {derivedList.map((d) => (
-                <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} variant="row" />
+                <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} onOpenTransactions={setOpenTxnHoldingId} variant="row" />
               ))}
             </tbody>
           )}
@@ -118,13 +135,23 @@ export function HoldingsList({ holdings, prices, fxRate, onUpdate, onRemove }: P
                 </div>
                 <div className="flex flex-col gap-3">
                   {g.items.map((d) => (
-                    <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} variant="card" />
+                    <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} onOpenTransactions={setOpenTxnHoldingId} variant="card" />
                   ))}
                 </div>
               </div>
             ))
-          : derivedList.map((d) => <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} variant="card" />)}
+          : derivedList.map((d) => <HoldingRow key={d.h.id} d={d} onUpdate={onUpdate} onRemove={onRemove} onOpenTransactions={setOpenTxnHoldingId} variant="card" />)}
       </div>
+
+      {openTxnHolding && (
+        <TransactionModal
+          holding={openTxnHolding}
+          transactions={transactionsFor(transactions, openTxnHolding.id)}
+          onAdd={onAddTransaction}
+          onRemove={onRemoveTransaction}
+          onClose={() => setOpenTxnHoldingId(null)}
+        />
+      )}
     </div>
   )
 }
@@ -133,11 +160,13 @@ function HoldingRow({
   d,
   onUpdate,
   onRemove,
+  onOpenTransactions,
   variant,
 }: {
   d: DerivedHolding
-  onUpdate: (id: string, patch: Partial<Holding>) => void
+  onUpdate: (id: string, patch: Partial<HoldingIdentity>) => void
   onRemove: (id: string) => void
+  onOpenTransactions: (id: string) => void
   variant: 'row' | 'card'
 }) {
   const { h, info, price, currentValueKRW, pnlKRW, pnlPercent } = d
@@ -181,9 +210,14 @@ function HoldingRow({
               {h.symbol} · {formatNumber(h.quantity)}주/개
             </div>
           </div>
-          <button type="button" onClick={() => onRemove(h.id)} className="text-xs text-slate-500 hover:text-rose-400">
-            삭제
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => onOpenTransactions(h.id)} className="text-xs text-indigo-400 hover:text-indigo-300">
+              거래내역
+            </button>
+            <button type="button" onClick={() => onRemove(h.id)} className="text-xs text-slate-500 hover:text-rose-400">
+              삭제
+            </button>
+          </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           <div>
@@ -252,9 +286,14 @@ function HoldingRow({
         {pnlPercent != null && <div className="text-xs opacity-80">{formatPercent(pnlPercent)}</div>}
       </td>
       <td className="px-4 py-3 text-right">
-        <button type="button" onClick={() => onRemove(h.id)} className="text-xs text-slate-500 hover:text-rose-400">
-          삭제
-        </button>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={() => onOpenTransactions(h.id)} className="text-xs text-indigo-400 hover:text-indigo-300">
+            거래내역
+          </button>
+          <button type="button" onClick={() => onRemove(h.id)} className="text-xs text-slate-500 hover:text-rose-400">
+            삭제
+          </button>
+        </div>
       </td>
     </tr>
   )

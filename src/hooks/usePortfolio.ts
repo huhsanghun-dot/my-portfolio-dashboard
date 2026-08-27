@@ -1,23 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchUsStockPrice } from '../lib/api/alphaVantage'
 import { fetchCryptoPrice } from '../lib/api/cryptoCom'
 import { fetchUsdToKrwRate, FALLBACK_USD_KRW } from '../lib/api/fx'
 import { fetchKrxPriceBestEffort } from '../lib/api/krx'
+import { genId } from '../lib/id'
+import { computeAllHoldings, computePosition, todayStr, transactionsFor } from '../lib/positions'
 import {
-  loadHoldings,
+  loadHoldingIdentities,
   loadSettings,
   loadSnapshots,
-  saveHoldings,
+  loadTransactions,
+  migrateLegacyHoldingsToTransactions,
+  saveHoldingIdentities,
   saveSettings,
+  saveTransactions,
   upsertTodaySnapshot,
 } from '../lib/storage'
-import type { AppSettings, Holding, PriceInfo, Snapshot } from '../types'
+import type { AppSettings, Holding, HoldingIdentity, PriceInfo, Snapshot, Transaction, TransactionAction } from '../types'
 
 const AUTO_REFRESH_MS = 60_000
-
-function genId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-}
 
 export function effectivePrice(holding: Holding, info: PriceInfo | undefined): number | null {
   if (info?.price != null) return info.price
@@ -25,35 +26,114 @@ export function effectivePrice(holding: Holding, info: PriceInfo | undefined): n
   return null
 }
 
+export interface NewHoldingInput {
+  type: HoldingIdentity['type']
+  name: string
+  symbol: string
+  currency: HoldingIdentity['currency']
+  category?: string
+  /** Initial BUY transaction that establishes the position. */
+  quantity: number
+  price: number
+  date: string
+}
+
+export interface NewTransactionInput {
+  action: TransactionAction
+  quantity: number
+  price: number
+  date: string
+}
+
 export function usePortfolio() {
-  const [holdings, setHoldings] = useState<Holding[]>(() => loadHoldings())
+  const [identities, setIdentities] = useState<HoldingIdentity[]>(() => loadHoldingIdentities())
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    const raw = loadHoldingIdentities() as (HoldingIdentity & { quantity?: number; avgBuyPrice?: number })[]
+    const existing = loadTransactions()
+    return migrateLegacyHoldingsToTransactions(raw, existing)
+  })
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [prices, setPrices] = useState<Record<string, PriceInfo>>({})
   const [fxRate, setFxRate] = useState<number>(FALLBACK_USD_KRW)
   const [fxUpdatedAt, setFxUpdatedAt] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [snapshots, setSnapshots] = useState<Snapshot[]>(() => loadSnapshots())
+
+  const holdings = useMemo(() => computeAllHoldings(identities, transactions), [identities, transactions])
   const holdingsRef = useRef(holdings)
   holdingsRef.current = holdings
+  const transactionsRef = useRef(transactions)
+  transactionsRef.current = transactions
 
-  useEffect(() => saveHoldings(holdings), [holdings])
+  useEffect(() => saveHoldingIdentities(identities), [identities])
+  useEffect(() => saveTransactions(transactions), [transactions])
   useEffect(() => saveSettings(settings), [settings])
 
-  const addHolding = useCallback((h: Omit<Holding, 'id'>) => {
-    setHoldings((prev) => [...prev, { ...h, id: genId() }])
+  const addHolding = useCallback((input: NewHoldingInput) => {
+    const id = genId()
+    const identity: HoldingIdentity = {
+      id,
+      type: input.type,
+      name: input.name,
+      symbol: input.symbol,
+      currency: input.currency,
+      category: input.category,
+    }
+    const txn: Transaction = {
+      id: genId(),
+      holdingId: id,
+      action: 'BUY',
+      quantity: input.quantity,
+      price: input.price,
+      date: input.date || todayStr(),
+      createdAt: Date.now(),
+    }
+    setIdentities((prev) => [...prev, identity])
+    setTransactions((prev) => [...prev, txn])
+    return id
   }, [])
 
-  const updateHolding = useCallback((id: string, patch: Partial<Holding>) => {
-    setHoldings((prev) => prev.map((h) => (h.id === id ? { ...h, ...patch } : h)))
+  const updateHolding = useCallback((id: string, patch: Partial<HoldingIdentity>) => {
+    setIdentities((prev) => prev.map((h) => (h.id === id ? { ...h, ...patch } : h)))
   }, [])
 
   const removeHolding = useCallback((id: string) => {
-    setHoldings((prev) => prev.filter((h) => h.id !== id))
+    setIdentities((prev) => prev.filter((h) => h.id !== id))
+    setTransactions((prev) => prev.filter((t) => t.holdingId !== id))
     setPrices((prev) => {
       const next = { ...prev }
       delete next[id]
       return next
     })
+  }, [])
+
+  /** Returns an error message if the transaction is invalid (e.g. selling more than currently held), else null. */
+  const addTransaction = useCallback((holdingId: string, input: NewTransactionInput): string | null => {
+    if (!(input.quantity > 0) || !(input.price >= 0)) return '수량과 가격을 확인해주세요.'
+
+    if (input.action === 'SELL') {
+      const own = transactionsFor(transactionsRef.current, holdingId)
+      const { quantity } = computePosition(own)
+      if (input.quantity > quantity) {
+        return `보유 수량(${quantity})보다 많이 매도할 수 없습니다.`
+      }
+    }
+
+    const txn: Transaction = {
+      id: genId(),
+      holdingId,
+      action: input.action,
+      quantity: input.quantity,
+      price: input.price,
+      date: input.date || todayStr(),
+      createdAt: Date.now(),
+    }
+    setTransactions((prev) => [...prev, txn])
+    return null
+  }, [])
+
+  const removeTransaction = useCallback((id: string) => {
+    setTransactions((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
   const refreshPricesFor = useCallback(async (targets: Holding[]) => {
@@ -75,7 +155,7 @@ export function usePortfolio() {
       })
       // For KR ETFs, a successful auto-fetch refreshes the persisted manual price too,
       // so it stays the source of truth even when the next fetch attempt fails.
-      setHoldings((prev) =>
+      setIdentities((prev) =>
         prev.map((h) => {
           if (h.type !== 'KR_ETF') return h
           const found = results.find(([id]) => id === h.id)
@@ -141,7 +221,6 @@ export function usePortfolio() {
   }
 
   // Snapshot today's total once we have at least one successful price and holdings exist.
-  const snapshottedRef = useRef(false)
   useEffect(() => {
     if (holdings.length === 0) return
     const hasAnyPrice = holdings.some((h) => effectivePrice(h, prices[h.id]) != null)
@@ -149,7 +228,6 @@ export function usePortfolio() {
     if (refreshing) return
     const next = upsertTodaySnapshot(totalValueKRW)
     setSnapshots(next)
-    snapshottedRef.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshing])
 
@@ -158,6 +236,9 @@ export function usePortfolio() {
     addHolding,
     updateHolding,
     removeHolding,
+    transactions,
+    addTransaction,
+    removeTransaction,
     settings,
     setSettings,
     prices,

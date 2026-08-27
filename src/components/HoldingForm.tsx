@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import type { AssetType, Currency, Holding } from '../types'
+import type { NewHoldingInput } from '../hooks/usePortfolio'
+import { todayStr } from '../lib/positions'
+import type { AssetType, Currency } from '../types'
 
 interface Props {
-  onAdd: (h: Omit<Holding, 'id'>) => void
+  onAdd: (h: NewHoldingInput) => void
   existingCategories: string[]
 }
 
@@ -30,6 +32,7 @@ export function HoldingForm({ onAdd, existingCategories }: Props) {
   const [symbol, setSymbol] = useState('')
   const [quantity, setQuantity] = useState('')
   const [avgBuyPrice, setAvgBuyPrice] = useState('')
+  const [date, setDate] = useState(todayStr())
   const [category, setCategory] = useState('')
   const [open, setOpen] = useState(false)
 
@@ -38,6 +41,7 @@ export function HoldingForm({ onAdd, existingCategories }: Props) {
     setSymbol('')
     setQuantity('')
     setAvgBuyPrice('')
+    setDate(todayStr())
     setCategory('')
   }
 
@@ -52,7 +56,8 @@ export function HoldingForm({ onAdd, existingCategories }: Props) {
       name: name.trim(),
       symbol: symbol.trim().toUpperCase(),
       quantity: qty,
-      avgBuyPrice: price,
+      price,
+      date,
       currency: TYPE_DEFAULT_CURRENCY[type],
       category: category.trim() || undefined,
     })
@@ -75,7 +80,7 @@ export function HoldingForm({ onAdd, existingCategories }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid grid-cols-2 gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:grid-cols-3 lg:grid-cols-6"
+      className="grid grid-cols-2 gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:grid-cols-3 lg:grid-cols-7"
     >
       <label className="flex flex-col gap-1 text-xs text-slate-400 lg:col-span-1">
         구분
@@ -131,7 +136,7 @@ export function HoldingForm({ onAdd, existingCategories }: Props) {
       </label>
 
       <label className="flex flex-col gap-1 text-xs text-slate-400 lg:col-span-1">
-        수량
+        매수 수량
         <input
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
@@ -144,7 +149,7 @@ export function HoldingForm({ onAdd, existingCategories }: Props) {
       </label>
 
       <label className="flex flex-col gap-1 text-xs text-slate-400 lg:col-span-1">
-        매입가 ({TYPE_DEFAULT_CURRENCY[type]})
+        매수가 ({TYPE_DEFAULT_CURRENCY[type]})
         <input
           value={avgBuyPrice}
           onChange={(e) => setAvgBuyPrice(e.target.value)}
@@ -156,7 +161,18 @@ export function HoldingForm({ onAdd, existingCategories }: Props) {
         />
       </label>
 
-      <div className="col-span-2 flex items-end gap-2 sm:col-span-3 lg:col-span-6">
+      <label className="flex flex-col gap-1 text-xs text-slate-400 lg:col-span-1">
+        매수일
+        <input
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          type="date"
+          className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white"
+          required
+        />
+      </label>
+
+      <div className="col-span-2 flex items-end gap-2 sm:col-span-3 lg:col-span-7">
         <button
           type="submit"
           className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400"

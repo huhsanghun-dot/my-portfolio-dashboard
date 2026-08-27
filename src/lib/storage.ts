@@ -1,7 +1,10 @@
-import type { AppSettings, Holding, Snapshot } from '../types'
+import type { AppSettings, HoldingIdentity, Snapshot, Transaction } from '../types'
+import { genId } from './id'
+import { todayStr } from './positions'
 
 const KEYS = {
   holdings: 'pf-dashboard:holdings:v1',
+  transactions: 'pf-dashboard:transactions:v1',
   settings: 'pf-dashboard:settings:v1',
   snapshots: 'pf-dashboard:snapshots:v1',
 } as const
@@ -24,12 +27,59 @@ function writeJSON<T>(key: string, value: T): void {
   }
 }
 
-export function loadHoldings(): Holding[] {
-  return readJSON<Holding[]>(KEYS.holdings, [])
+/** A holding as it may still be shaped in a browser's existing localStorage, from before transactions existed. */
+interface LegacyHoldingFields {
+  quantity?: number
+  avgBuyPrice?: number
 }
 
-export function saveHoldings(holdings: Holding[]): void {
+export function loadHoldingIdentities(): HoldingIdentity[] {
+  return readJSON<HoldingIdentity[]>(KEYS.holdings, [])
+}
+
+export function saveHoldingIdentities(holdings: HoldingIdentity[]): void {
   writeJSON(KEYS.holdings, holdings)
+}
+
+export function loadTransactions(): Transaction[] {
+  return readJSON<Transaction[]>(KEYS.transactions, [])
+}
+
+export function saveTransactions(transactions: Transaction[]): void {
+  writeJSON(KEYS.transactions, transactions)
+}
+
+/**
+ * One-time migration for holdings created before buy/sell transactions existed:
+ * any stored holding that still carries a legacy quantity/avgBuyPrice but has no
+ * transaction of its own yet gets a synthetic initial BUY transaction, so its
+ * position keeps computing correctly under the new (transaction-derived) model.
+ */
+export function migrateLegacyHoldingsToTransactions(
+  rawHoldings: (HoldingIdentity & LegacyHoldingFields)[],
+  transactions: Transaction[],
+): Transaction[] {
+  const holdingIdsWithTxns = new Set(transactions.map((t) => t.holdingId))
+  const synthetic: Transaction[] = []
+
+  for (const h of rawHoldings) {
+    if (holdingIdsWithTxns.has(h.id)) continue
+    if (!h.quantity || h.quantity <= 0) continue
+    synthetic.push({
+      id: genId(),
+      holdingId: h.id,
+      action: 'BUY',
+      quantity: h.quantity,
+      price: h.avgBuyPrice ?? 0,
+      date: todayStr(),
+      createdAt: Date.now(),
+    })
+  }
+
+  if (synthetic.length === 0) return transactions
+  const merged = [...transactions, ...synthetic]
+  saveTransactions(merged)
+  return merged
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -52,13 +102,9 @@ export function saveSnapshots(snapshots: Snapshot[]): void {
   writeJSON(KEYS.snapshots, snapshots)
 }
 
-/** Upserts today's snapshot with the latest total value (KST-local date). */
+/** Upserts today's snapshot with the latest total value (local date). */
 export function upsertTodaySnapshot(totalValueKRW: number): Snapshot[] {
-  const today = new Date()
-  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
-    today.getDate(),
-  ).padStart(2, '0')}`
-
+  const date = todayStr()
   const snapshots = loadSnapshots()
   const idx = snapshots.findIndex((s) => s.date === date)
   const entry: Snapshot = { date, totalValueKRW, updatedAt: Date.now() }

@@ -12,6 +12,9 @@ function App() {
     addHolding,
     updateHolding,
     removeHolding,
+    transactions,
+    addTransaction,
+    removeTransaction,
     settings,
     setSettings,
     prices,
@@ -64,7 +67,16 @@ function App() {
 
         <div className="flex flex-col gap-3">
           <HoldingForm onAdd={addHolding} existingCategories={existingCategories} />
-          <HoldingsList holdings={holdings} prices={prices} fxRate={fxRate} onUpdate={updateHolding} onRemove={removeHolding} />
+          <HoldingsList
+            holdings={holdings}
+            prices={prices}
+            fxRate={fxRate}
+            transactions={transactions}
+            onUpdate={updateHolding}
+            onRemove={removeHolding}
+            onAddTransaction={addTransaction}
+            onRemoveTransaction={removeTransaction}
+          />
         </div>
 
         <footer className="pb-6 pt-2 text-center text-xs text-slate-600">
