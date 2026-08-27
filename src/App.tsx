@@ -1,0 +1,71 @@
+import { AssetChart } from './components/AssetChart'
+import { HoldingForm } from './components/HoldingForm'
+import { HoldingsList } from './components/HoldingsList'
+import { SettingsPanel } from './components/SettingsPanel'
+import { SummaryCards } from './components/SummaryCards'
+import { usePortfolio } from './hooks/usePortfolio'
+
+function App() {
+  const {
+    holdings,
+    addHolding,
+    updateHolding,
+    removeHolding,
+    settings,
+    setSettings,
+    prices,
+    fxRate,
+    fxUpdatedAt,
+    refreshing,
+    refreshAll,
+    totalValueKRW,
+    totalCostKRW,
+    snapshots,
+  } = usePortfolio()
+
+  const missingApiKey = holdings.some((h) => h.type === 'US_STOCK') && !settings.alphaVantageApiKey
+
+  return (
+    <div className="min-h-screen bg-slate-950">
+      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+          <div>
+            <h1 className="text-lg font-semibold text-white sm:text-xl">내 자산 대시보드</h1>
+            <p className="text-xs text-slate-500">해외 주식 · 암호화폐 · 국내 ETF 통합 관리</p>
+          </div>
+          <SettingsPanel settings={settings} onChange={setSettings} />
+        </div>
+      </header>
+
+      <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6">
+        {missingApiKey && (
+          <div className="rounded-xl border border-amber-800/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+            해외 주식 시세를 자동으로 불러오려면 우측 상단 설정에서 Alpha Vantage API 키를 입력하세요.
+          </div>
+        )}
+
+        <SummaryCards
+          totalValueKRW={totalValueKRW}
+          totalCostKRW={totalCostKRW}
+          fxRate={fxRate}
+          fxUpdatedAt={fxUpdatedAt}
+          refreshing={refreshing}
+          onRefresh={refreshAll}
+        />
+
+        <AssetChart snapshots={snapshots} />
+
+        <div className="flex flex-col gap-3">
+          <HoldingForm onAdd={addHolding} />
+          <HoldingsList holdings={holdings} prices={prices} fxRate={fxRate} onUpdate={updateHolding} onRemove={removeHolding} />
+        </div>
+
+        <footer className="pb-6 pt-2 text-center text-xs text-slate-600">
+          시세는 참고용이며 실제 거래 기준과 다를 수 있습니다. 모든 데이터는 이 브라우저에만 저장됩니다.
+        </footer>
+      </main>
+    </div>
+  )
+}
+
+export default App
