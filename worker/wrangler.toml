@@ -1,0 +1,10 @@
+name = "portfolio-dashboard-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Non-secret config. Secrets (KIWOOM_APP_KEY, KIWOOM_SECRET_KEY, FINNHUB_API_KEY)
+# are set separately via the Cloudflare dashboard (Settings > Variables and Secrets)
+# or `wrangler secret put <NAME>` — never committed to this file or the repo.
+[vars]
+ALLOWED_ORIGIN = "https://huhsanghun-dot.github.io"
+KIWOOM_DOMAIN = "https://api.kiwoom.com"
