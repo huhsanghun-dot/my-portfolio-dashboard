@@ -1,4 +1,4 @@
-name = "portfolio-dashboard-api"
+name = "my-portfolio-dashboard"
 main = "src/index.js"
 compatibility_date = "2025-01-01"
 
