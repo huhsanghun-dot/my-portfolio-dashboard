@@ -1,6 +1,7 @@
 name = "my-portfolio-dashboard"
 main = "src/index.js"
 compatibility_date = "2025-01-01"
+# redeploy trigger: pick up dashboard-configured secrets on a fresh build
 
 # Non-secret config. Secrets (KIWOOM_APP_KEY, KIWOOM_SECRET_KEY, FINNHUB_API_KEY)
 # are set separately via the Cloudflare dashboard (Settings > Variables and Secrets)
