@@ -38,15 +38,18 @@ def us_stock():
     if not symbol:
         return jsonify(error="symbol is required"), 400
     try:
-        info = yf.Ticker(symbol).fast_info
-        price = info["last_price"]
-        prev_close = info["previous_close"]
-        if price is None:
-            return jsonify(error="no price returned"), 502
-        change_percent = (
-            (price - prev_close) / prev_close * 100 if prev_close else None
-        )
-        return jsonify(price=float(price), changePercent=change_percent)
+        # history() pulls from Yahoo's chart API and is far more stable across
+        # Yahoo's response-format changes than fast_info's summary parsing.
+        hist = yf.Ticker(symbol).history(period="5d")
+        closes = hist["Close"].dropna() if not hist.empty else hist
+        if closes.empty:
+            return jsonify(error="no price data found"), 404
+
+        price = float(closes.iloc[-1])
+        change_percent = None
+        if len(closes) >= 2 and closes.iloc[-2]:
+            change_percent = (price - closes.iloc[-2]) / closes.iloc[-2] * 100
+        return jsonify(price=price, changePercent=change_percent)
     except Exception as err:  # noqa: BLE001 - report upstream failure to caller
         return jsonify(error=str(err)), 502
 
