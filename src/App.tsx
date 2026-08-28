@@ -2,7 +2,6 @@ import { AssetChart } from './components/AssetChart'
 import { CategoryDonutChart } from './components/CategoryDonutChart'
 import { HoldingForm } from './components/HoldingForm'
 import { HoldingsList } from './components/HoldingsList'
-import { SettingsPanel } from './components/SettingsPanel'
 import { SummaryCards } from './components/SummaryCards'
 import { usePortfolio } from './hooks/usePortfolio'
 
@@ -15,8 +14,6 @@ function App() {
     transactions,
     addTransaction,
     removeTransaction,
-    settings,
-    setSettings,
     prices,
     fxRate,
     fxUpdatedAt,
@@ -25,13 +22,8 @@ function App() {
     totalValueKRW,
     totalCostKRW,
     snapshots,
-    finnhubCooldownUntil,
   } = usePortfolio()
 
-  const hasStocks = holdings.some((h) => h.type === 'US_STOCK')
-  const now = Date.now()
-  const finnhubCooldownActive = hasStocks && finnhubCooldownUntil != null && now < finnhubCooldownUntil
-  const finnhubCooldownMinutesLeft = finnhubCooldownActive ? Math.ceil((finnhubCooldownUntil! - now) / 60_000) : 0
   const existingCategories = [...new Set(holdings.map((h) => h.category?.trim()).filter((c): c is string => !!c))].sort(
     (a, b) => a.localeCompare(b),
   )
@@ -44,18 +36,10 @@ function App() {
             <h1 className="text-lg font-semibold text-white sm:text-xl">내 자산 대시보드</h1>
             <p className="text-xs text-slate-500">해외 주식 · 암호화폐 · 국내 ETF 통합 관리</p>
           </div>
-          <SettingsPanel settings={settings} onChange={setSettings} />
         </div>
       </header>
 
       <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6">
-        {finnhubCooldownActive && (
-          <div className="rounded-xl border border-amber-800/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
-            Finnhub 호출 한도를 초과해서 약 {finnhubCooldownMinutesLeft}분간 쉬어갑니다 (자동으로 재개되며,
-            Yahoo Finance 갱신은 영향 없이 계속됩니다).
-          </div>
-        )}
-
         <SummaryCards
           totalValueKRW={totalValueKRW}
           totalCostKRW={totalCostKRW}

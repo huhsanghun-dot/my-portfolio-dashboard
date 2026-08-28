@@ -52,7 +52,3 @@ export interface Snapshot {
   totalValueKRW: number
   updatedAt: number
 }
-
-export interface AppSettings {
-  finnhubApiKey: string
-}

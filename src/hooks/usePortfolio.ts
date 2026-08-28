@@ -2,27 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchCryptoPrice } from '../lib/api/cryptoCom'
 import { fetchUsdToKrwRate, FALLBACK_USD_KRW } from '../lib/api/fx'
 import { fetchKrxPriceBestEffort } from '../lib/api/krx'
-import { FINNHUB_RATE_LIMIT_ERROR, fetchUsStockPriceWithFallback } from '../lib/api/stockPrice'
+import { fetchUsStockPriceFromServer } from '../lib/api/priceServer'
 import { genId } from '../lib/id'
 import { computeAllHoldings, computePosition, todayStr, transactionsFor } from '../lib/positions'
 import {
   loadHoldingIdentities,
-  loadSettings,
   loadSnapshots,
   loadTransactions,
   migrateLegacyHoldingsToTransactions,
   saveHoldingIdentities,
-  saveSettings,
   saveTransactions,
   upsertTodaySnapshot,
 } from '../lib/storage'
-import type { AppSettings, Holding, HoldingIdentity, PriceInfo, Snapshot, Transaction, TransactionAction } from '../types'
+import type { Holding, HoldingIdentity, PriceInfo, Snapshot, Transaction, TransactionAction } from '../types'
 
-// Stocks and crypto both refresh on this cadence. Stocks go through an ordered
-// fallback chain (Yahoo -> Finnhub, see lib/api/stockPrice.ts); a rate-limited
-// tier backs off independently without blocking the other.
+// Stocks and crypto both refresh on this cadence.
 const REFRESH_MS = 60_000
-const FINNHUB_COOLDOWN_MS = 90_000
 
 export function effectivePrice(holding: Holding, info: PriceInfo | undefined): number | null {
   if (info?.price != null) return info.price
@@ -56,25 +51,20 @@ export function usePortfolio() {
     const existing = loadTransactions()
     return migrateLegacyHoldingsToTransactions(raw, existing)
   })
-  const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [prices, setPrices] = useState<Record<string, PriceInfo>>({})
   const [fxRate, setFxRate] = useState<number>(FALLBACK_USD_KRW)
   const [fxUpdatedAt, setFxUpdatedAt] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [snapshots, setSnapshots] = useState<Snapshot[]>(() => loadSnapshots())
-  const [finnhubCooldownUntil, setFinnhubCooldownUntil] = useState<number | null>(null)
 
   const holdings = useMemo(() => computeAllHoldings(identities, transactions), [identities, transactions])
   const holdingsRef = useRef(holdings)
   holdingsRef.current = holdings
   const transactionsRef = useRef(transactions)
   transactionsRef.current = transactions
-  const finnhubCooldownRef = useRef(finnhubCooldownUntil)
-  finnhubCooldownRef.current = finnhubCooldownUntil
 
   useEffect(() => saveHoldingIdentities(identities), [identities])
   useEffect(() => saveTransactions(transactions), [transactions])
-  useEffect(() => saveSettings(settings), [settings])
 
   const addHolding = useCallback((input: NewHoldingInput) => {
     const id = genId()
@@ -145,25 +135,12 @@ export function usePortfolio() {
 
   const refreshPricesFor = useCallback(async (targets: Holding[]) => {
     if (targets.length === 0) return
-    // Only gates the Finnhub attempt inside fetchUsStockPriceWithFallback — Yahoo
-    // Finance keeps refreshing normally even while this is true.
-    const finnhubCoolingDown = finnhubCooldownRef.current != null && Date.now() < finnhubCooldownRef.current
 
     setRefreshing(true)
     try {
-      const currentSettings = loadSettings()
       const results = await Promise.all(
         targets.map(async (h): Promise<[string, PriceInfo]> => {
-          if (h.type === 'US_STOCK') {
-            return [
-              h.id,
-              await fetchUsStockPriceWithFallback({
-                symbol: h.symbol,
-                finnhubApiKey: currentSettings.finnhubApiKey,
-                finnhubCoolingDown,
-              }),
-            ]
-          }
+          if (h.type === 'US_STOCK') return [h.id, await fetchUsStockPriceFromServer(h.symbol)]
           if (h.type === 'CRYPTO') return [h.id, await fetchCryptoPrice(h.symbol)]
           return [h.id, await fetchKrxPriceBestEffort(h.symbol)]
         }),
@@ -184,10 +161,6 @@ export function usePortfolio() {
           return h
         }),
       )
-
-      if (results.some(([, info]) => info.error === FINNHUB_RATE_LIMIT_ERROR)) {
-        setFinnhubCooldownUntil(Date.now() + FINNHUB_COOLDOWN_MS)
-      }
     } finally {
       setRefreshing(false)
     }
@@ -263,8 +236,6 @@ export function usePortfolio() {
     transactions,
     addTransaction,
     removeTransaction,
-    settings,
-    setSettings,
     prices,
     fxRate,
     fxUpdatedAt,
@@ -273,6 +244,5 @@ export function usePortfolio() {
     totalValueKRW,
     totalCostKRW,
     snapshots,
-    finnhubCooldownUntil,
   }
 }

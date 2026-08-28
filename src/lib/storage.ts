@@ -1,11 +1,10 @@
-import type { AppSettings, HoldingIdentity, Snapshot, Transaction } from '../types'
+import type { HoldingIdentity, Snapshot, Transaction } from '../types'
 import { genId } from './id'
 import { todayStr } from './positions'
 
 const KEYS = {
   holdings: 'pf-dashboard:holdings:v1',
   transactions: 'pf-dashboard:transactions:v1',
-  settings: 'pf-dashboard:settings:v1',
   snapshots: 'pf-dashboard:snapshots:v1',
 } as const
 
@@ -80,18 +79,6 @@ export function migrateLegacyHoldingsToTransactions(
   const merged = [...transactions, ...synthetic]
   saveTransactions(merged)
   return merged
-}
-
-const DEFAULT_SETTINGS: AppSettings = {
-  finnhubApiKey: '',
-}
-
-export function loadSettings(): AppSettings {
-  return { ...DEFAULT_SETTINGS, ...readJSON<Partial<AppSettings>>(KEYS.settings, {}) }
-}
-
-export function saveSettings(settings: AppSettings): void {
-  writeJSON(KEYS.settings, settings)
 }
 
 export function loadSnapshots(): Snapshot[] {
