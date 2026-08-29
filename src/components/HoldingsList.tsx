@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { NewTransactionInput } from '../hooks/usePortfolio'
+import { ASSET_TYPE_LABEL } from '../lib/assetTypes'
 import { formatKRW, formatNumber, formatPercent, formatUSD } from '../lib/format'
 import { deriveAllHoldings, groupByCategory, type DerivedHolding } from '../lib/portfolioMath'
 import { transactionsFor } from '../lib/positions'
@@ -17,12 +18,6 @@ interface Props {
   onRemoveTransaction: (transactionId: string) => void
 }
 
-const TYPE_LABEL: Record<Holding['type'], string> = {
-  US_STOCK: '해외주식',
-  CRYPTO: '암호화폐',
-  KR_ETF: '국내ETF',
-}
-
 function formatNative(value: number, currency: Holding['currency']) {
   return currency === 'USD' ? formatUSD(value) : formatKRW(value)
 }
@@ -37,7 +32,7 @@ export function HoldingsList({
   onAddTransaction,
   onRemoveTransaction,
 }: Props) {
-  const [grouped, setGrouped] = useState(false)
+  const [grouped, setGrouped] = useState(true)
   const [openTxnHoldingId, setOpenTxnHoldingId] = useState<string | null>(null)
 
   const derivedList = useMemo(() => deriveAllHoldings(holdings, prices, fxRate), [holdings, prices, fxRate])
@@ -172,6 +167,7 @@ function HoldingRow({
   const { h, info, price, currentValueKRW, pnlKRW, pnlPercent } = d
   const isUp = (pnlKRW ?? 0) >= 0
   const usedManual = info?.price == null && h.manualPrice != null
+  const isCash = h.type === 'CASH'
 
   const manualInput = (
     <input
@@ -203,11 +199,11 @@ function HoldingRow({
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{TYPE_LABEL[h.type]}</span>
+              <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{ASSET_TYPE_LABEL[h.type]}</span>
               <span className="font-medium text-white">{h.name}</span>
             </div>
             <div className="text-xs text-slate-500">
-              {h.symbol} · {formatNumber(h.quantity)}주/개
+              {isCash ? h.currency : `${h.symbol} · ${formatNumber(h.quantity)}주/개`}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -220,38 +216,51 @@ function HoldingRow({
           </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <div className="text-xs text-slate-500">현재가</div>
-            <div className="text-white">
-              {price != null ? formatNative(price, h.currency) : info?.error ?? '조회 중…'}
-              {usedManual && <span className="ml-1 text-[10px] text-amber-400">수동</span>}
+          {isCash ? (
+            <div className="col-span-2">
+              <div className="text-xs text-slate-500">보유 금액</div>
+              <div className="text-white">{formatNative(h.quantity, h.currency)}</div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <div className="text-xs text-slate-500">현재가</div>
+                <div className="text-white">
+                  {price != null ? formatNative(price, h.currency) : info?.error ?? '조회 중…'}
+                  {usedManual && <span className="ml-1 text-[10px] text-amber-400">수동</span>}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">매입가</div>
+                <div className="text-slate-300">{formatNative(h.avgBuyPrice, h.currency)}</div>
+              </div>
+            </>
+          )}
           <div>
             <div className="text-xs text-slate-500">평가금액</div>
             <div className="text-white">{currentValueKRW != null ? formatKRW(currentValueKRW) : '-'}</div>
           </div>
-          <div>
-            <div className="text-xs text-slate-500">매입가</div>
-            <div className="text-slate-300">{formatNative(h.avgBuyPrice, h.currency)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500">손익</div>
-            <div className={pnlKRW == null ? 'text-slate-500' : isUp ? 'text-emerald-400' : 'text-rose-400'}>
-              {pnlKRW != null ? `${isUp ? '+' : ''}${formatKRW(pnlKRW)}` : '-'}
-              {pnlPercent != null && <span className="ml-1 text-xs">{formatPercent(pnlPercent)}</span>}
+          {!isCash && (
+            <div>
+              <div className="text-xs text-slate-500">손익</div>
+              <div className={pnlKRW == null ? 'text-slate-500' : isUp ? 'text-emerald-400' : 'text-rose-400'}>
+                {pnlKRW != null ? `${isUp ? '+' : ''}${formatKRW(pnlKRW)}` : '-'}
+                {pnlPercent != null && <span className="ml-1 text-xs">{formatPercent(pnlPercent)}</span>}
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-2">
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-slate-500">카테고리</span>
             {categoryInput}
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-slate-500">수동 시세</span>
-            {manualInput}
-          </div>
+          {!isCash && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-slate-500">수동 시세</span>
+              {manualInput}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -261,29 +270,35 @@ function HoldingRow({
     <tr className="border-b border-slate-800/60 last:border-0">
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{TYPE_LABEL[h.type]}</span>
+          <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{ASSET_TYPE_LABEL[h.type]}</span>
           <div>
             <div className="font-medium text-white">{h.name}</div>
-            <div className="text-xs text-slate-500">{h.symbol}</div>
+            <div className="text-xs text-slate-500">{isCash ? h.currency : h.symbol}</div>
           </div>
         </div>
         <div className="mt-1">{categoryInput}</div>
       </td>
       <td className="px-4 py-3 text-slate-300">{formatNumber(h.quantity)}</td>
-      <td className="px-4 py-3 text-slate-300">{formatNative(h.avgBuyPrice, h.currency)}</td>
+      <td className="px-4 py-3 text-slate-300">{isCash ? '-' : formatNative(h.avgBuyPrice, h.currency)}</td>
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-white">
-            {price != null ? formatNative(price, h.currency) : <span className="text-rose-400/80 text-xs">{info?.error ?? '조회 중…'}</span>}
-          </span>
-          {usedManual && <span className="text-[10px] text-amber-400">수동</span>}
-        </div>
-        <div className="mt-1">{manualInput}</div>
+        {isCash ? (
+          <span className="text-slate-500">-</span>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-white">
+                {price != null ? formatNative(price, h.currency) : <span className="text-rose-400/80 text-xs">{info?.error ?? '조회 중…'}</span>}
+              </span>
+              {usedManual && <span className="text-[10px] text-amber-400">수동</span>}
+            </div>
+            <div className="mt-1">{manualInput}</div>
+          </>
+        )}
       </td>
       <td className="px-4 py-3 text-white">{currentValueKRW != null ? formatKRW(currentValueKRW) : '-'}</td>
       <td className={`px-4 py-3 ${pnlKRW == null ? 'text-slate-500' : isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-        {pnlKRW != null ? `${isUp ? '+' : ''}${formatKRW(pnlKRW)}` : '-'}
-        {pnlPercent != null && <div className="text-xs opacity-80">{formatPercent(pnlPercent)}</div>}
+        {isCash ? '-' : pnlKRW != null ? `${isUp ? '+' : ''}${formatKRW(pnlKRW)}` : '-'}
+        {!isCash && pnlPercent != null && <div className="text-xs opacity-80">{formatPercent(pnlPercent)}</div>}
       </td>
       <td className="px-4 py-3 text-right">
         <div className="flex justify-end gap-2">

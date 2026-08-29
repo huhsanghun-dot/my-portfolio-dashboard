@@ -1,4 +1,4 @@
-export type AssetType = 'US_STOCK' | 'CRYPTO' | 'KR_ETF'
+export type AssetType = 'US_STOCK' | 'KR_ETF' | 'CRYPTO' | 'CASH'
 
 export type Currency = 'USD' | 'KRW'
 
@@ -10,7 +10,7 @@ export interface HoldingIdentity {
   type: AssetType
   /** Display name, e.g. "Apple Inc." or "TIGER 나스닥100" */
   name: string
-  /** Ticker/symbol used for API lookups. For crypto e.g. "BTC_USDT". For KR ETF, the 6-digit KRX code, e.g. "133690". */
+  /** Ticker/symbol used for API lookups. For crypto, an Upbit market code e.g. "KRW-BTC". For KR stock, the 6-digit KRX code, e.g. "133690". For cash, just the currency code. */
   symbol: string
   currency: Currency
   /** User-entered price for KR ETFs (or as a fallback when auto price lookup fails). */

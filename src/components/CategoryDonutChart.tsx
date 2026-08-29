@@ -59,21 +59,23 @@ export function CategoryDonutChart({ holdings, prices, fxRate }: Props) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
       <h2 className="text-sm font-medium text-slate-300">카테고리별 비중</h2>
-      <div className="mt-2 flex flex-col items-center gap-4 sm:flex-row">
-        <div className="relative h-56 w-56 shrink-0">
+      <div className="mt-3 flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
+        <div className="relative h-52 w-52 shrink-0 sm:h-56 sm:w-56">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+            <PieChart margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
               <Pie
                 data={slices}
                 dataKey="value"
                 nameKey="name"
-                innerRadius="62%"
-                outerRadius="92%"
-                paddingAngle={2}
-                cornerRadius={4}
+                innerRadius="64%"
+                outerRadius="88%"
+                paddingAngle={3}
+                cornerRadius={5}
                 stroke="none"
                 isAnimationActive={false}
-                label={({ percent }) => ((percent ?? 0) >= 0.08 ? `${Math.round((percent ?? 0) * 100)}%` : '')}
+                label={({ percent }) =>
+                  (percent ?? 0) >= 0.08 ? `${Math.round((percent ?? 0) * 100)}%` : ''
+                }
                 labelLine={false}
               >
                 {slices.map((s) => (
@@ -82,25 +84,29 @@ export function CategoryDonutChart({ holdings, prices, fxRate }: Props) {
               </Pie>
               <Tooltip
                 contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: '#cbd5e1' }}
+                labelStyle={{ color: '#e2e8f0', fontWeight: 500 }}
+                itemStyle={{ color: '#cbd5e1' }}
                 formatter={(value, name) => [`${formatKRW(Number(value))} (${((Number(value) / total) * 100).toFixed(1)}%)`, name]}
               />
             </PieChart>
           </ResponsiveContainer>
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
             <span className="text-[11px] text-slate-500">총 평가금액</span>
-            <span className="text-sm font-semibold text-white">{formatKRW(total)}</span>
+            <span className="text-base font-semibold leading-tight text-white">{formatKRW(total)}</span>
           </div>
         </div>
 
-        <ul className="grid w-full grid-cols-1 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
+        <ul className="flex w-full min-w-0 flex-col gap-2 text-sm">
           {slices.map((s) => (
-            <li key={s.name} className="flex items-center justify-between gap-2">
-              <span className="flex min-w-0 items-center gap-2">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-                <span className="truncate text-slate-300">{s.name}</span>
+            <li key={s.name} className="flex items-center gap-2.5">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+              <span className="min-w-0 flex-1 truncate text-slate-300" title={s.name}>
+                {s.name}
               </span>
-              <span className="shrink-0 text-slate-400">{((s.value / total) * 100).toFixed(1)}%</span>
+              <span className="shrink-0 tabular-nums text-slate-500">{formatKRW(s.value)}</span>
+              <span className="w-12 shrink-0 text-right tabular-nums font-medium text-slate-300">
+                {((s.value / total) * 100).toFixed(1)}%
+              </span>
             </li>
           ))}
         </ul>

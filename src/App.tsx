@@ -41,7 +41,7 @@ function App() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div>
             <h1 className="text-lg font-semibold text-white sm:text-xl">내 자산 대시보드</h1>
-            <p className="text-xs text-slate-500">해외 주식 · 암호화폐 · 국내 ETF 통합 관리</p>
+            <p className="text-xs text-slate-500">해외 주식 · 국내 주식 · 암호화폐 · 현금자산 통합 관리</p>
           </div>
           <SyncPanel
             syncCode={syncCode}

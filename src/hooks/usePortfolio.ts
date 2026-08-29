@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchCryptoPrice } from '../lib/api/cryptoCom'
+import { fetchCryptoPriceUpbit } from '../lib/api/upbit'
 import { fetchUsdToKrwRate, FALLBACK_USD_KRW } from '../lib/api/fx'
 import { fetchKrxPriceBestEffort } from '../lib/api/krx'
 import { fetchUsStockPriceFromServer } from '../lib/api/priceServer'
@@ -247,7 +247,9 @@ export function usePortfolio() {
       const results = await Promise.all(
         targets.map(async (h): Promise<[string, PriceInfo]> => {
           if (h.type === 'US_STOCK') return [h.id, await fetchUsStockPriceFromServer(h.symbol)]
-          if (h.type === 'CRYPTO') return [h.id, await fetchCryptoPrice(h.symbol)]
+          if (h.type === 'CRYPTO') return [h.id, await fetchCryptoPriceUpbit(h.symbol)]
+          // Cash is always worth exactly 1 unit of its own currency — nothing to fetch.
+          if (h.type === 'CASH') return [h.id, { price: 1, changePercent: null, updatedAt: Date.now(), source: 'auto' }]
           return [h.id, await fetchKrxPriceBestEffort(h.symbol)]
         }),
       )

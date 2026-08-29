@@ -13,12 +13,16 @@ interface Props {
 }
 
 const ACTION_LABEL: Record<TransactionAction, string> = { BUY: '매수', SELL: '매도' }
+const CASH_ACTION_LABEL: Record<TransactionAction, string> = { BUY: '입금', SELL: '출금' }
 
 function formatNative(value: number, currency: Holding['currency']) {
   return currency === 'USD' ? formatUSD(value) : formatKRW(value)
 }
 
 export function TransactionModal({ holding, transactions, onAdd, onRemove, onClose }: Props) {
+  const isCash = holding.type === 'CASH'
+  const actionLabel = isCash ? CASH_ACTION_LABEL : ACTION_LABEL
+
   const [action, setAction] = useState<TransactionAction>('BUY')
   const [quantity, setQuantity] = useState('')
   const [price, setPrice] = useState('')
@@ -31,7 +35,7 @@ export function TransactionModal({ holding, transactions, onAdd, onRemove, onClo
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault()
     const qty = Number.parseFloat(quantity)
-    const p = Number.parseFloat(price)
+    const p = isCash ? 1 : Number.parseFloat(price)
     if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(p) || p < 0) {
       setError('수량과 가격을 확인해주세요.')
       return
@@ -62,51 +66,62 @@ export function TransactionModal({ holding, transactions, onAdd, onRemove, onClo
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 border-b border-slate-800 px-4 py-3 text-center text-sm">
-          <div>
-            <div className="text-xs text-slate-500">보유 수량</div>
-            <div className="text-white">{formatNumber(position.quantity)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500">평균 매입가</div>
-            <div className="text-white">{position.quantity > 0 ? formatNative(position.avgBuyPrice, holding.currency) : '-'}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500">실현손익</div>
-            <div className={position.realizedPnl > 0 ? 'text-emerald-400' : position.realizedPnl < 0 ? 'text-rose-400' : 'text-slate-300'}>
-              {position.realizedPnl !== 0 ? formatNative(position.realizedPnl, holding.currency) : '-'}
+        <div className={`grid gap-2 border-b border-slate-800 px-4 py-3 text-center text-sm ${isCash ? 'grid-cols-1' : 'grid-cols-3'}`}>
+          {isCash ? (
+            <div>
+              <div className="text-xs text-slate-500">보유 금액</div>
+              <div className="text-white">{formatNative(position.quantity, holding.currency)}</div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <div className="text-xs text-slate-500">보유 수량</div>
+                <div className="text-white">{formatNumber(position.quantity)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">평균 매입가</div>
+                <div className="text-white">{position.quantity > 0 ? formatNative(position.avgBuyPrice, holding.currency) : '-'}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">실현손익</div>
+                <div className={position.realizedPnl > 0 ? 'text-emerald-400' : position.realizedPnl < 0 ? 'text-rose-400' : 'text-slate-300'}>
+                  {position.realizedPnl !== 0 ? formatNative(position.realizedPnl, holding.currency) : '-'}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        <form onSubmit={handleAdd} className="flex flex-col gap-2 border-b border-slate-800 px-4 py-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <form onSubmit={handleAdd} className={`flex flex-col gap-2 border-b border-slate-800 px-4 py-3`}>
+          <div className={`grid grid-cols-2 gap-2 ${isCash ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
             <select
               value={action}
               onChange={(e) => setAction(e.target.value as TransactionAction)}
               className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white"
             >
-              <option value="BUY">매수</option>
-              <option value="SELL">매도</option>
+              <option value="BUY">{actionLabel.BUY}</option>
+              <option value="SELL">{actionLabel.SELL}</option>
             </select>
             <input
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               type="number"
               step="any"
-              placeholder="수량"
+              placeholder={isCash ? `금액 (${holding.currency})` : '수량'}
               className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white placeholder:text-slate-600"
               required
             />
-            <input
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              type="number"
-              step="any"
-              placeholder={`단가 (${holding.currency})`}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white placeholder:text-slate-600"
-              required
-            />
+            {!isCash && (
+              <input
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                type="number"
+                step="any"
+                placeholder={`단가 (${holding.currency})`}
+                className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white placeholder:text-slate-600"
+                required
+              />
+            )}
             <input
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -137,11 +152,11 @@ export function TransactionModal({ holding, transactions, onAdd, onRemove, onClo
                         t.action === 'BUY' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'
                       }`}
                     >
-                      {ACTION_LABEL[t.action]}
+                      {actionLabel[t.action]}
                     </span>
                     <span className="text-slate-400">{t.date}</span>
                     <span className="truncate text-slate-200">
-                      {formatNumber(t.quantity)} @ {formatNative(t.price, holding.currency)}
+                      {isCash ? formatNative(t.quantity, holding.currency) : `${formatNumber(t.quantity)} @ ${formatNative(t.price, holding.currency)}`}
                     </span>
                   </div>
                   <button type="button" onClick={() => onRemove(t.id)} className="shrink-0 text-xs text-slate-500 hover:text-rose-400">

@@ -1,6 +1,8 @@
 import { effectivePrice } from '../hooks/usePortfolio'
+import { ASSET_TYPE_LABEL, ASSET_TYPE_ORDER } from './assetTypes'
 import type { Holding, PriceInfo } from '../types'
 
+/** Fallback label of last resort — practically unreachable since every holding has a type. */
 export const UNCATEGORIZED = '미분류'
 
 export interface DerivedHolding {
@@ -34,24 +36,48 @@ export function deriveAllHoldings(holdings: Holding[], prices: Record<string, Pr
   return holdings.map((h) => deriveHoldingMetrics(h, prices[h.id], fxRate))
 }
 
-/** Groups derived holdings by their user-defined category (falling back to "미분류"), sorted by subtotal value descending — 미분류 always last. */
+/**
+ * Groups derived holdings by their user-defined category, falling back to the
+ * holding's asset-type label (해외주식/국내주식/암호화폐/현금자산) when no category was
+ * set — so holdings nobody bothered to categorize still land in a meaningful
+ * group instead of one big "미분류" bucket.
+ *
+ * Custom (user-named) groups come first, sorted by subtotal value descending;
+ * the asset-type fallback groups follow in the fixed order 해외주식 - 국내주식 -
+ * 가상화폐 - 현금자산. Within every group, items are sorted by current value
+ * descending.
+ */
 export function groupByCategory(derivedList: DerivedHolding[]): CategoryGroup[] {
   const map = new Map<string, DerivedHolding[]>()
+  const customLabels = new Set<string>()
+
   for (const d of derivedList) {
-    const key = d.h.category?.trim() || UNCATEGORIZED
+    const custom = d.h.category?.trim()
+    const key = custom || ASSET_TYPE_LABEL[d.h.type] || UNCATEGORIZED
+    if (custom) customLabels.add(key)
     const list = map.get(key)
     if (list) list.push(d)
     else map.set(key, [d])
   }
+
   const entries: CategoryGroup[] = [...map.entries()].map(([label, items]) => ({
     label,
-    items,
+    items: [...items].sort((a, b) => (b.currentValueKRW ?? 0) - (a.currentValueKRW ?? 0)),
     subtotalKRW: items.reduce((sum, d) => sum + (d.currentValueKRW ?? 0), 0),
   }))
+
+  const typeRank = (label: string) => {
+    const idx = ASSET_TYPE_ORDER.findIndex((t) => ASSET_TYPE_LABEL[t] === label)
+    return idx === -1 ? ASSET_TYPE_ORDER.length : idx
+  }
+
   entries.sort((a, b) => {
-    if (a.label === UNCATEGORIZED) return 1
-    if (b.label === UNCATEGORIZED) return -1
-    return b.subtotalKRW - a.subtotalKRW
+    const aCustom = customLabels.has(a.label)
+    const bCustom = customLabels.has(b.label)
+    if (aCustom !== bCustom) return aCustom ? -1 : 1
+    if (aCustom) return b.subtotalKRW - a.subtotalKRW
+    return typeRank(a.label) - typeRank(b.label)
   })
+
   return entries
 }
