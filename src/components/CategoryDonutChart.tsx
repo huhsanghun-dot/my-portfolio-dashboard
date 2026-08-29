@@ -59,7 +59,7 @@ export function CategoryDonutChart({ holdings, prices, fxRate }: Props) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
       <h2 className="text-sm font-medium text-slate-300">카테고리별 비중</h2>
-      <div className="mt-3 flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
+      <div className="mt-4 flex flex-col items-center gap-5">
         <div className="relative h-52 w-52 shrink-0 sm:h-56 sm:w-56">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
@@ -96,20 +96,24 @@ export function CategoryDonutChart({ holdings, prices, fxRate }: Props) {
           </div>
         </div>
 
-        <ul className="flex w-full min-w-0 flex-col gap-2 text-sm">
-          {slices.map((s) => (
-            <li key={s.name} className="flex items-center gap-2.5">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-              <span className="min-w-0 flex-1 truncate text-slate-300" title={s.name}>
-                {s.name}
-              </span>
-              <span className="shrink-0 tabular-nums text-slate-500">{formatKRW(s.value)}</span>
-              <span className="w-12 shrink-0 text-right tabular-nums font-medium text-slate-300">
-                {((s.value / total) * 100).toFixed(1)}%
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {slices.map((s) => {
+            const pct = (s.value / total) * 100
+            return (
+              <div key={s.name} className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                  <span className="min-w-0 flex-1 break-words text-sm font-medium text-slate-200">{s.name}</span>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-white">{pct.toFixed(1)}%</span>
+                </div>
+                <div className="mt-1.5 text-xs tabular-nums text-slate-500">{formatKRW(s.value)}</div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: s.color }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
