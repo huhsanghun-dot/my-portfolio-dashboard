@@ -18,6 +18,8 @@ export interface CategoryGroup {
   label: string
   items: DerivedHolding[]
   subtotalKRW: number
+  pnlKRW: number | null
+  pnlPercent: number | null
 }
 
 export function deriveHoldingMetrics(h: Holding, info: PriceInfo | undefined, fxRate: number): DerivedHolding {
@@ -60,11 +62,22 @@ export function groupByCategory(derivedList: DerivedHolding[]): CategoryGroup[] 
     else map.set(key, [d])
   }
 
-  const entries: CategoryGroup[] = [...map.entries()].map(([label, items]) => ({
-    label,
-    items: [...items].sort((a, b) => (b.currentValueKRW ?? 0) - (a.currentValueKRW ?? 0)),
-    subtotalKRW: items.reduce((sum, d) => sum + (d.currentValueKRW ?? 0), 0),
-  }))
+  const entries: CategoryGroup[] = [...map.entries()].map(([label, items]) => {
+    // Only holdings with both a known value and P&L contribute to the group's
+    // P&L, so a holding whose price failed to load doesn't skew the group total.
+    const pnlItems = items.filter((d) => d.pnlKRW != null && d.currentValueKRW != null)
+    const pnlKRW = pnlItems.length > 0 ? pnlItems.reduce((sum, d) => sum + (d.pnlKRW ?? 0), 0) : null
+    const costKRW = pnlItems.reduce((sum, d) => sum + ((d.currentValueKRW ?? 0) - (d.pnlKRW ?? 0)), 0)
+    const pnlPercent = pnlKRW != null && costKRW > 0 ? (pnlKRW / costKRW) * 100 : null
+
+    return {
+      label,
+      items: [...items].sort((a, b) => (b.currentValueKRW ?? 0) - (a.currentValueKRW ?? 0)),
+      subtotalKRW: items.reduce((sum, d) => sum + (d.currentValueKRW ?? 0), 0),
+      pnlKRW,
+      pnlPercent,
+    }
+  })
 
   const typeRank = (label: string) => {
     const idx = ASSET_TYPE_ORDER.findIndex((t) => ASSET_TYPE_LABEL[t] === label)

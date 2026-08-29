@@ -22,6 +22,20 @@ function formatNative(value: number, currency: Holding['currency']) {
   return currency === 'USD' ? formatUSD(value) : formatKRW(value)
 }
 
+function GroupPnl({ pnlKRW, pnlPercent }: { pnlKRW: number | null; pnlPercent: number | null }) {
+  if (pnlKRW == null) return null
+  const isUp = pnlKRW >= 0
+  return (
+    <div className={`flex items-baseline gap-1 text-xs ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+      <span>
+        {isUp ? '+' : ''}
+        {formatKRW(pnlKRW)}
+      </span>
+      {pnlPercent != null && <span className="opacity-80">{formatPercent(pnlPercent)}</span>}
+    </div>
+  )
+}
+
 export function HoldingsList({
   holdings,
   prices,
@@ -77,8 +91,8 @@ export function HoldingsList({
             <tr className="border-b border-slate-800 text-left text-xs text-slate-500">
               <th className="px-4 py-3 font-medium">종목</th>
               <th className="px-4 py-3 font-medium">수량</th>
-              <th className="px-4 py-3 font-medium">매입가</th>
               <th className="px-4 py-3 font-medium">현재가</th>
+              <th className="px-4 py-3 font-medium">매입가</th>
               <th className="px-4 py-3 font-medium">평가금액(KRW)</th>
               <th className="px-4 py-3 font-medium">손익</th>
               <th className="px-4 py-3 font-medium" />
@@ -89,18 +103,21 @@ export function HoldingsList({
               <tbody key={g.label}>
                 <tr className={`border-b border-slate-800 bg-slate-800/40 ${i > 0 ? 'border-t-2 border-t-slate-700' : ''}`}>
                   <td colSpan={7} className="px-4 py-3.5">
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-l-4 border-indigo-500/70 pl-3">
+                    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 border-l-4 border-indigo-500/70 pl-3">
                       <div className="flex items-baseline gap-2">
                         <span className="text-base font-bold tracking-tight text-white">{g.label}</span>
                         <span className="text-xs text-slate-500">{g.items.length}개 종목</span>
                       </div>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-semibold text-slate-200">{formatKRW(g.subtotalKRW)}</span>
-                        {grandTotalKRW > 0 && (
-                          <span className="text-xs text-slate-500">
-                            {((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%
-                          </span>
-                        )}
+                      <div className="flex flex-col items-end gap-0.5">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-sm font-semibold text-slate-200">{formatKRW(g.subtotalKRW)}</span>
+                          {grandTotalKRW > 0 && (
+                            <span className="text-xs text-slate-500">
+                              {((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%
+                            </span>
+                          )}
+                        </div>
+                        <GroupPnl pnlKRW={g.pnlKRW} pnlPercent={g.pnlPercent} />
                       </div>
                     </div>
                   </td>
@@ -125,18 +142,21 @@ export function HoldingsList({
         {grouped
           ? groups.map((g, i) => (
               <div key={g.label} className={`flex flex-col gap-2 ${i > 0 ? 'mt-2 border-t border-slate-800 pt-5' : ''}`}>
-                <div className="flex items-baseline justify-between gap-2 rounded-lg bg-slate-800/40 py-2 pl-3 pr-2.5">
+                <div className="flex items-start justify-between gap-2 rounded-lg bg-slate-800/40 py-2 pl-3 pr-2.5">
                   <div className="flex items-baseline gap-2 border-l-4 border-indigo-500/70 pl-2.5">
                     <span className="text-base font-bold tracking-tight text-white">{g.label}</span>
                     <span className="text-xs text-slate-500">{g.items.length}개</span>
                   </div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-sm font-semibold text-slate-200">{formatKRW(g.subtotalKRW)}</span>
-                    {grandTotalKRW > 0 && (
-                      <span className="text-xs text-slate-500">
-                        {((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%
-                      </span>
-                    )}
+                  <div className="flex flex-col items-end gap-0.5">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-sm font-semibold text-slate-200">{formatKRW(g.subtotalKRW)}</span>
+                      {grandTotalKRW > 0 && (
+                        <span className="text-xs text-slate-500">
+                          {((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                    <GroupPnl pnlKRW={g.pnlKRW} pnlPercent={g.pnlPercent} />
                   </div>
                 </div>
                 <div className="flex flex-col gap-3">
@@ -233,24 +253,24 @@ function HoldingRow({
               <div className="text-white">{formatNative(h.quantity, h.currency)}</div>
             </div>
           ) : (
-            <>
-              <div>
-                <div className="text-xs text-slate-500">현재가</div>
-                <div className="text-white">
-                  {price != null ? formatNative(price, h.currency) : info?.error ?? '조회 중…'}
-                  {usedManual && <span className="ml-1 text-[10px] text-amber-400">수동</span>}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">매입가</div>
-                <div className="text-slate-300">{formatNative(h.avgBuyPrice, h.currency)}</div>
-              </div>
-            </>
+            <div>
+              <div className="text-xs text-slate-500">매입가</div>
+              <div className="text-slate-300">{formatNative(h.avgBuyPrice, h.currency)}</div>
+            </div>
           )}
           <div>
             <div className="text-xs text-slate-500">평가금액</div>
             <div className="text-white">{currentValueKRW != null ? formatKRW(currentValueKRW) : '-'}</div>
           </div>
+          {!isCash && (
+            <div>
+              <div className="text-xs text-slate-500">현재가</div>
+              <div className="text-white">
+                {price != null ? formatNative(price, h.currency) : info?.error ?? '조회 중…'}
+                {usedManual && <span className="ml-1 text-[10px] text-amber-400">수동</span>}
+              </div>
+            </div>
+          )}
           {!isCash && (
             <div>
               <div className="text-xs text-slate-500">손익</div>
@@ -290,7 +310,6 @@ function HoldingRow({
         <div className="mt-1">{categoryInput}</div>
       </td>
       <td className="px-4 py-3 text-slate-300">{formatNumber(h.quantity)}</td>
-      <td className="px-4 py-3 text-slate-300">{isCash ? '-' : formatNative(h.avgBuyPrice, h.currency)}</td>
       <td className="px-4 py-3">
         {isCash ? (
           <span className="text-slate-500">-</span>
@@ -306,6 +325,7 @@ function HoldingRow({
           </>
         )}
       </td>
+      <td className="px-4 py-3 text-slate-300">{isCash ? '-' : formatNative(h.avgBuyPrice, h.currency)}</td>
       <td className="px-4 py-3 text-white">{currentValueKRW != null ? formatKRW(currentValueKRW) : '-'}</td>
       <td className={`px-4 py-3 ${pnlKRW == null ? 'text-slate-500' : isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
         {isCash ? '-' : pnlKRW != null ? `${isUp ? '+' : ''}${formatKRW(pnlKRW)}` : '-'}
