@@ -200,25 +200,46 @@ function HoldingRow({
   const usedManual = info?.price == null && h.manualPrice != null
   const isCash = h.type === 'CASH'
 
+  // Local draft state so typing doesn't commit (and re-sort/re-group the list)
+  // on every keystroke — only on blur or Enter, once the value is settled.
+  const [manualDraft, setManualDraft] = useState(h.manualPrice != null ? String(h.manualPrice) : '')
+  const commitManual = () => {
+    if (manualDraft === '') {
+      if (h.manualPrice != null) onUpdate(h.id, { manualPrice: undefined })
+      return
+    }
+    const parsed = Number.parseFloat(manualDraft)
+    if (Number.isNaN(parsed) || parsed === h.manualPrice) return
+    onUpdate(h.id, { manualPrice: parsed })
+  }
+
   const manualInput = (
     <input
       type="number"
       step="any"
-      value={h.manualPrice ?? ''}
-      onChange={(e) => {
-        const v = e.target.value
-        onUpdate(h.id, { manualPrice: v === '' ? undefined : Number.parseFloat(v) })
-      }}
+      value={manualDraft}
+      onChange={(e) => setManualDraft(e.target.value)}
+      onBlur={commitManual}
+      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
       placeholder="수동 입력"
       className="w-24 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white placeholder:text-slate-600"
     />
   )
 
+  const [categoryDraft, setCategoryDraft] = useState(h.category ?? '')
+  const commitCategory = () => {
+    const trimmed = categoryDraft.trim()
+    if (trimmed === (h.category ?? '')) return
+    onUpdate(h.id, { category: trimmed === '' ? undefined : trimmed })
+  }
+
   const categoryInput = (
     <input
       type="text"
-      value={h.category ?? ''}
-      onChange={(e) => onUpdate(h.id, { category: e.target.value === '' ? undefined : e.target.value })}
+      value={categoryDraft}
+      onChange={(e) => setCategoryDraft(e.target.value)}
+      onBlur={commitCategory}
+      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
       placeholder="카테고리 지정"
       className="w-28 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white placeholder:text-slate-600"
     />
