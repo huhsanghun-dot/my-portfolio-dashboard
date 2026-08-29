@@ -33,3 +33,7 @@ export function fetchUsStockPriceFromServer(symbol: string): Promise<PriceInfo> 
 export function fetchKrStockPriceFromServer(code: string): Promise<PriceInfo> {
   return fetchFromServer(`/api/kr-stock?code=${encodeURIComponent(code)}`)
 }
+
+export function fetchCryptoPriceFromServer(market: string): Promise<PriceInfo> {
+  return fetchFromServer(`/api/crypto?market=${encodeURIComponent(market)}`)
+}

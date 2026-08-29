@@ -13,6 +13,7 @@ Endpoints:
   GET  /health                     -> { ok: true }
   GET  /api/us-stock?symbol=AAPL   -> { price, changePercent }
   GET  /api/kr-stock?code=005930   -> { price, changePercent }
+  GET  /api/crypto?market=KRW-BTC  -> { price, changePercent }
   POST /api/sync                   -> { code }               (create)
   GET  /api/sync/<code>            -> <stored JSON state>
   PUT  /api/sync/<code>            -> { ok: true }            (overwrite)
@@ -20,6 +21,7 @@ Endpoints:
 import os
 from datetime import datetime, timedelta
 
+import requests
 import yfinance as yf
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -120,6 +122,28 @@ def kr_stock():
         price = float(row["종가"])
         change_percent = float(row["등락률"]) if "등락률" in df.columns else None
         return jsonify(price=price, changePercent=change_percent)
+    except Exception as err:  # noqa: BLE001 - report upstream failure to caller
+        return jsonify(error=str(err)), 502
+
+
+@app.get("/api/crypto")
+def crypto():
+    market = request.args.get("market")
+    if not market:
+        return jsonify(error="market is required"), 400
+    try:
+        # Server-side call to Upbit's public ticker API — sidesteps the browser
+        # CORS/rate-limit flakiness seen calling it directly from the client.
+        res = requests.get("https://api.upbit.com/v1/ticker", params={"markets": market}, timeout=10)
+        res.raise_for_status()
+        data = res.json()
+        ticker = data[0] if data else None
+        price = ticker.get("trade_price") if ticker else None
+        if price is None:
+            return jsonify(error="no price data found"), 404
+
+        change_rate = ticker.get("signed_change_rate")
+        return jsonify(price=price, changePercent=(change_rate * 100 if change_rate is not None else None))
     except Exception as err:  # noqa: BLE001 - report upstream failure to caller
         return jsonify(error=str(err)), 502
 
