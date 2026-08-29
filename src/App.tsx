@@ -38,7 +38,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
+      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div>
             <h1 className="text-lg font-semibold text-white sm:text-xl">내 자산 대시보드</h1>
