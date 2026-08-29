@@ -23,6 +23,7 @@ function App() {
     totalValueKRW,
     totalCostKRW,
     snapshots,
+    resetSnapshots,
     syncCode,
     syncStatus,
     syncError,
@@ -65,7 +66,7 @@ function App() {
         />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <AssetChart snapshots={snapshots} />
+          <AssetChart snapshots={snapshots} onReset={resetSnapshots} />
           <CategoryDonutChart holdings={holdings} prices={prices} fxRate={fxRate} />
         </div>
 

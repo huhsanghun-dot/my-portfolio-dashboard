@@ -4,13 +4,31 @@ import { formatDateLabel, formatKRW } from '../lib/format'
 
 interface Props {
   snapshots: Snapshot[]
+  onReset: () => void
 }
 
-export function AssetChart({ snapshots }: Props) {
+function ResetButton({ onReset }: { onReset: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (window.confirm('지금까지의 자산 변화 기록을 지우고 오늘부터 새로 쌓을까요?')) onReset()
+      }}
+      className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-400 transition hover:border-slate-500 hover:text-white"
+    >
+      오늘부터 다시 기록
+    </button>
+  )
+}
+
+export function AssetChart({ snapshots, onReset }: Props) {
   if (snapshots.length < 2) {
     return (
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-        <h2 className="text-sm font-medium text-slate-300">자산 변화 추이</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-slate-300">자산 변화 추이</h2>
+          {snapshots.length > 0 && <ResetButton onReset={onReset} />}
+        </div>
         <div className="mt-6 flex h-48 items-center justify-center text-sm text-slate-500">
           매일 접속하면 그날의 총 자산이 자동 기록되어 이 그래프에 쌓입니다.
         </div>
@@ -22,7 +40,10 @@ export function AssetChart({ snapshots }: Props) {
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-      <h2 className="text-sm font-medium text-slate-300">자산 변화 추이</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-medium text-slate-300">자산 변화 추이</h2>
+        <ResetButton onReset={onReset} />
+      </div>
       <div className="mt-2 h-56 sm:h-72">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

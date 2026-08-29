@@ -335,6 +335,14 @@ export function usePortfolio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshing])
 
+  /** Clears past asset-growth history and starts tracking fresh from today's total. */
+  const resetSnapshots = useCallback(() => {
+    const next: Snapshot[] = [{ date: todayStr(), totalValueKRW, updatedAt: Date.now() }]
+    saveSnapshots(next)
+    setSnapshots(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalValueKRW])
+
   return {
     holdings,
     addHolding,
@@ -351,6 +359,7 @@ export function usePortfolio() {
     totalValueKRW,
     totalCostKRW,
     snapshots,
+    resetSnapshots,
     syncCode,
     syncStatus,
     syncError,
