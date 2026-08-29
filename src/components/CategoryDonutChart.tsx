@@ -73,10 +73,6 @@ export function CategoryDonutChart({ holdings, prices, fxRate }: Props) {
                 cornerRadius={5}
                 stroke="none"
                 isAnimationActive={false}
-                label={({ percent }) =>
-                  (percent ?? 0) >= 0.08 ? `${Math.round((percent ?? 0) * 100)}%` : ''
-                }
-                labelLine={false}
               >
                 {slices.map((s) => (
                   <Cell key={s.name} fill={s.color} />
