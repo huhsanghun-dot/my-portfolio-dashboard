@@ -85,11 +85,11 @@ export function HoldingsList({
             </tr>
           </thead>
           {grouped ? (
-            groups.map((g) => (
+            groups.map((g, i) => (
               <tbody key={g.label}>
-                <tr className="border-b border-slate-800/60 bg-slate-950/50">
-                  <td colSpan={7} className="px-4 py-2 text-xs">
-                    <span className="font-medium text-slate-200">{g.label}</span>
+                <tr className={`border-b border-slate-800/60 bg-slate-950/50 ${i > 0 ? 'border-t-2 border-t-slate-700' : ''}`}>
+                  <td colSpan={7} className="px-4 py-3 text-xs">
+                    <span className="text-sm font-semibold tracking-tight text-slate-100">{g.label}</span>
                     <span className="ml-2 text-slate-500">{g.items.length}개 종목</span>
                     <span className="ml-3 text-slate-300">{formatKRW(g.subtotalKRW)}</span>
                     {grandTotalKRW > 0 && (
@@ -115,13 +115,13 @@ export function HoldingsList({
       {/* Mobile / tablet-portrait card list */}
       <div className="flex flex-col gap-4 p-3 lg:hidden">
         {grouped
-          ? groups.map((g) => (
-              <div key={g.label} className="flex flex-col gap-2">
-                <div className="flex items-baseline justify-between px-1 text-xs">
-                  <span className="font-medium text-slate-200">
-                    {g.label} <span className="text-slate-500">· {g.items.length}개</span>
+          ? groups.map((g, i) => (
+              <div key={g.label} className={`flex flex-col gap-2 ${i > 0 ? 'mt-2 border-t border-slate-800 pt-5' : ''}`}>
+                <div className="flex items-baseline justify-between px-1">
+                  <span className="text-sm font-semibold tracking-tight text-slate-100">
+                    {g.label} <span className="text-xs font-normal text-slate-500">· {g.items.length}개</span>
                   </span>
-                  <span className="text-slate-400">
+                  <span className="text-xs text-slate-400">
                     {formatKRW(g.subtotalKRW)}
                     {grandTotalKRW > 0 && (
                       <span className="ml-1 text-slate-500">({((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%)</span>
