@@ -10,7 +10,7 @@ export function formatUSD(value: number): string {
   )
 }
 
-export function formatNumber(value: number, maxFractionDigits = 4): string {
+export function formatNumber(value: number, maxFractionDigits = 8): string {
   return new Intl.NumberFormat('ko-KR', { maximumFractionDigits: maxFractionDigits }).format(value)
 }
 
