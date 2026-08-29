@@ -87,14 +87,22 @@ export function HoldingsList({
           {grouped ? (
             groups.map((g, i) => (
               <tbody key={g.label}>
-                <tr className={`border-b border-slate-800/60 bg-slate-950/50 ${i > 0 ? 'border-t-2 border-t-slate-700' : ''}`}>
-                  <td colSpan={7} className="px-4 py-3 text-xs">
-                    <span className="text-sm font-semibold tracking-tight text-slate-100">{g.label}</span>
-                    <span className="ml-2 text-slate-500">{g.items.length}개 종목</span>
-                    <span className="ml-3 text-slate-300">{formatKRW(g.subtotalKRW)}</span>
-                    {grandTotalKRW > 0 && (
-                      <span className="ml-1 text-slate-500">({((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%)</span>
-                    )}
+                <tr className={`border-b border-slate-800 bg-slate-800/40 ${i > 0 ? 'border-t-2 border-t-slate-700' : ''}`}>
+                  <td colSpan={7} className="px-4 py-3.5">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-l-4 border-indigo-500/70 pl-3">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-base font-bold tracking-tight text-white">{g.label}</span>
+                        <span className="text-xs text-slate-500">{g.items.length}개 종목</span>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-semibold text-slate-200">{formatKRW(g.subtotalKRW)}</span>
+                        {grandTotalKRW > 0 && (
+                          <span className="text-xs text-slate-500">
+                            {((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </td>
                 </tr>
                 {g.items.map((d) => (
@@ -117,16 +125,19 @@ export function HoldingsList({
         {grouped
           ? groups.map((g, i) => (
               <div key={g.label} className={`flex flex-col gap-2 ${i > 0 ? 'mt-2 border-t border-slate-800 pt-5' : ''}`}>
-                <div className="flex items-baseline justify-between px-1">
-                  <span className="text-sm font-semibold tracking-tight text-slate-100">
-                    {g.label} <span className="text-xs font-normal text-slate-500">· {g.items.length}개</span>
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    {formatKRW(g.subtotalKRW)}
+                <div className="flex items-baseline justify-between gap-2 rounded-lg bg-slate-800/40 py-2 pl-3 pr-2.5">
+                  <div className="flex items-baseline gap-2 border-l-4 border-indigo-500/70 pl-2.5">
+                    <span className="text-base font-bold tracking-tight text-white">{g.label}</span>
+                    <span className="text-xs text-slate-500">{g.items.length}개</span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-sm font-semibold text-slate-200">{formatKRW(g.subtotalKRW)}</span>
                     {grandTotalKRW > 0 && (
-                      <span className="ml-1 text-slate-500">({((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%)</span>
+                      <span className="text-xs text-slate-500">
+                        {((g.subtotalKRW / grandTotalKRW) * 100).toFixed(1)}%
+                      </span>
                     )}
-                  </span>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-3">
                   {g.items.map((d) => (
