@@ -6,6 +6,7 @@ const KEYS = {
   holdings: 'pf-dashboard:holdings:v1',
   transactions: 'pf-dashboard:transactions:v1',
   snapshots: 'pf-dashboard:snapshots:v1',
+  syncCode: 'pf-dashboard:sync-code:v1',
 } as const
 
 function readJSON<T>(key: string, fallback: T): T {
@@ -105,4 +106,21 @@ export function upsertTodaySnapshot(totalValueKRW: number): Snapshot[] {
   }
   saveSnapshots(next)
   return next
+}
+
+/** The device's linked cross-device sync code, if any (see lib/api/sync.ts). */
+export function loadSyncCode(): string | null {
+  return readJSON<string | null>(KEYS.syncCode, null)
+}
+
+export function saveSyncCode(code: string | null): void {
+  if (code == null) {
+    try {
+      localStorage.removeItem(KEYS.syncCode)
+    } catch {
+      // localStorage unavailable — nothing to clean up
+    }
+    return
+  }
+  writeJSON(KEYS.syncCode, code)
 }

@@ -5,10 +5,17 @@ public data sources that don't require an API key or IP whitelisting, so
 this can run on any free host (Render, etc.) — unlike the Kiwoom Securities
 API this replaces, which required a pre-registered fixed IP.
 
+Also proxies a tiny cross-device sync store (see sync.py) so the dashboard's
+localStorage-only holdings/transactions can be shared between a phone and a
+laptop via a short code, without any user accounts.
+
 Endpoints:
-  GET /health                     -> { ok: true }
-  GET /api/us-stock?symbol=AAPL   -> { price, changePercent }
-  GET /api/kr-stock?code=005930   -> { price, changePercent }
+  GET  /health                     -> { ok: true }
+  GET  /api/us-stock?symbol=AAPL   -> { price, changePercent }
+  GET  /api/kr-stock?code=005930   -> { price, changePercent }
+  POST /api/sync                   -> { code }               (create)
+  GET  /api/sync/<code>            -> <stored JSON state>
+  PUT  /api/sync/<code>            -> { ok: true }            (overwrite)
 """
 import os
 from datetime import datetime, timedelta
@@ -17,6 +24,8 @@ import yfinance as yf
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pykrx import stock
+
+from sync import SyncNotConfigured, SyncNotFound, SyncTooLarge, create_sync, read_sync, write_sync
 
 app = Flask(__name__)
 
@@ -30,6 +39,41 @@ CORS(app, origins=ALLOWED_ORIGINS)
 @app.get("/health")
 def health():
     return jsonify(ok=True)
+
+
+@app.post("/api/sync")
+def sync_create():
+    try:
+        code = create_sync(request.get_data(as_text=True) or "{}")
+        return jsonify(code=code)
+    except SyncTooLarge:
+        return jsonify(error="data too large"), 413
+    except SyncNotConfigured:
+        return jsonify(error="sync store not configured"), 501
+
+
+@app.get("/api/sync/<code>")
+def sync_read(code: str):
+    try:
+        raw = read_sync(code)
+        return app.response_class(raw, mimetype="application/json")
+    except SyncNotFound:
+        return jsonify(error="sync code not found"), 404
+    except SyncNotConfigured:
+        return jsonify(error="sync store not configured"), 501
+
+
+@app.put("/api/sync/<code>")
+def sync_write(code: str):
+    try:
+        write_sync(code, request.get_data(as_text=True) or "{}")
+        return jsonify(ok=True)
+    except SyncNotFound:
+        return jsonify(error="sync code not found"), 404
+    except SyncTooLarge:
+        return jsonify(error="data too large"), 413
+    except SyncNotConfigured:
+        return jsonify(error="sync store not configured"), 501
 
 
 @app.get("/api/us-stock")

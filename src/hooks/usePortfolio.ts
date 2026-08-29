@@ -3,14 +3,18 @@ import { fetchCryptoPrice } from '../lib/api/cryptoCom'
 import { fetchUsdToKrwRate, FALLBACK_USD_KRW } from '../lib/api/fx'
 import { fetchKrxPriceBestEffort } from '../lib/api/krx'
 import { fetchUsStockPriceFromServer } from '../lib/api/priceServer'
+import { createSyncCode, fetchSyncState, pushSyncState, type SyncState } from '../lib/api/sync'
 import { genId } from '../lib/id'
 import { computeAllHoldings, computePosition, todayStr, transactionsFor } from '../lib/positions'
 import {
   loadHoldingIdentities,
   loadSnapshots,
+  loadSyncCode,
   loadTransactions,
   migrateLegacyHoldingsToTransactions,
   saveHoldingIdentities,
+  saveSnapshots,
+  saveSyncCode,
   saveTransactions,
   upsertTodaySnapshot,
 } from '../lib/storage'
@@ -18,6 +22,9 @@ import type { Holding, HoldingIdentity, PriceInfo, Snapshot, Transaction, Transa
 
 // Stocks and crypto both refresh on this cadence.
 const REFRESH_MS = 60_000
+const SYNC_PUSH_DEBOUNCE_MS = 1_500
+
+export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error'
 
 export function effectivePrice(holding: Holding, info: PriceInfo | undefined): number | null {
   if (info?.price != null) return info.price
@@ -56,15 +63,114 @@ export function usePortfolio() {
   const [fxUpdatedAt, setFxUpdatedAt] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [snapshots, setSnapshots] = useState<Snapshot[]>(() => loadSnapshots())
+  const [syncCode, setSyncCode] = useState<string | null>(() => loadSyncCode())
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
+  const [syncError, setSyncError] = useState<string | null>(null)
 
   const holdings = useMemo(() => computeAllHoldings(identities, transactions), [identities, transactions])
   const holdingsRef = useRef(holdings)
   holdingsRef.current = holdings
   const transactionsRef = useRef(transactions)
   transactionsRef.current = transactions
+  const snapshotsRef = useRef(snapshots)
+  snapshotsRef.current = snapshots
+  const syncCodeRef = useRef(syncCode)
+  syncCodeRef.current = syncCode
 
   useEffect(() => saveHoldingIdentities(identities), [identities])
   useEffect(() => saveTransactions(transactions), [transactions])
+
+  const adoptSyncState = useCallback((state: SyncState) => {
+    setIdentities(state.identities ?? [])
+    setTransactions(state.transactions ?? [])
+    setSnapshots(state.snapshots ?? [])
+    saveHoldingIdentities(state.identities ?? [])
+    saveTransactions(state.transactions ?? [])
+    saveSnapshots(state.snapshots ?? [])
+  }, [])
+
+  const linkSync = useCallback(
+    async (code: string) => {
+      setSyncStatus('syncing')
+      setSyncError(null)
+      try {
+        const state = await fetchSyncState(code)
+        adoptSyncState(state)
+        saveSyncCode(code)
+        setSyncCode(code)
+        setSyncStatus('synced')
+      } catch (err) {
+        setSyncStatus('error')
+        setSyncError(err instanceof Error ? err.message : '동기화 실패')
+        throw err
+      }
+    },
+    [adoptSyncState],
+  )
+
+  const createSync = useCallback(async () => {
+    setSyncStatus('syncing')
+    setSyncError(null)
+    try {
+      const code = await createSyncCode({
+        identities: identities,
+        transactions: transactionsRef.current,
+        snapshots: snapshotsRef.current,
+      })
+      saveSyncCode(code)
+      setSyncCode(code)
+      setSyncStatus('synced')
+      return code
+    } catch (err) {
+      setSyncStatus('error')
+      setSyncError(err instanceof Error ? err.message : '동기화 코드 생성 실패')
+      throw err
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identities])
+
+  const unlinkSync = useCallback(() => {
+    saveSyncCode(null)
+    setSyncCode(null)
+    setSyncStatus('idle')
+    setSyncError(null)
+  }, [])
+
+  // Adopt a ?sync=CODE link on first load (e.g. shared from another device), then
+  // strip it from the URL. Falls back to whatever code this device already had.
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const sharedCode = url.searchParams.get('sync')
+    if (sharedCode) {
+      url.searchParams.delete('sync')
+      window.history.replaceState({}, '', url.toString())
+      void linkSync(sharedCode)
+      return
+    }
+    const existing = loadSyncCode()
+    if (existing) void linkSync(existing)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Push local changes to the linked device group, debounced so rapid edits collapse
+  // into one request.
+  const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!syncCode) return
+    if (pushTimerRef.current) clearTimeout(pushTimerRef.current)
+    pushTimerRef.current = setTimeout(() => {
+      setSyncStatus('syncing')
+      pushSyncState(syncCode, { identities, transactions, snapshots })
+        .then(() => setSyncStatus('synced'))
+        .catch((err: unknown) => {
+          setSyncStatus('error')
+          setSyncError(err instanceof Error ? err.message : '동기화 저장 실패')
+        })
+    }, SYNC_PUSH_DEBOUNCE_MS)
+    return () => {
+      if (pushTimerRef.current) clearTimeout(pushTimerRef.current)
+    }
+  }, [syncCode, identities, transactions, snapshots])
 
   const addHolding = useCallback((input: NewHoldingInput) => {
     const id = genId()
@@ -244,5 +350,11 @@ export function usePortfolio() {
     totalValueKRW,
     totalCostKRW,
     snapshots,
+    syncCode,
+    syncStatus,
+    syncError,
+    createSync,
+    linkSync,
+    unlinkSync,
   }
 }

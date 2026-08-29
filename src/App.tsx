@@ -3,6 +3,7 @@ import { CategoryDonutChart } from './components/CategoryDonutChart'
 import { HoldingForm } from './components/HoldingForm'
 import { HoldingsList } from './components/HoldingsList'
 import { SummaryCards } from './components/SummaryCards'
+import { SyncPanel } from './components/SyncPanel'
 import { usePortfolio } from './hooks/usePortfolio'
 
 function App() {
@@ -22,6 +23,12 @@ function App() {
     totalValueKRW,
     totalCostKRW,
     snapshots,
+    syncCode,
+    syncStatus,
+    syncError,
+    createSync,
+    linkSync,
+    unlinkSync,
   } = usePortfolio()
 
   const existingCategories = [...new Set(holdings.map((h) => h.category?.trim()).filter((c): c is string => !!c))].sort(
@@ -36,6 +43,14 @@ function App() {
             <h1 className="text-lg font-semibold text-white sm:text-xl">내 자산 대시보드</h1>
             <p className="text-xs text-slate-500">해외 주식 · 암호화폐 · 국내 ETF 통합 관리</p>
           </div>
+          <SyncPanel
+            syncCode={syncCode}
+            syncStatus={syncStatus}
+            syncError={syncError}
+            onCreate={createSync}
+            onLink={linkSync}
+            onUnlink={unlinkSync}
+          />
         </div>
       </header>
 
@@ -69,7 +84,8 @@ function App() {
         </div>
 
         <footer className="pb-6 pt-2 text-center text-xs text-slate-600">
-          시세는 참고용이며 실제 거래 기준과 다를 수 있습니다. 모든 데이터는 이 브라우저에만 저장됩니다.
+          시세는 참고용이며 실제 거래 기준과 다를 수 있습니다. 데이터는 이 브라우저에 저장되며, 우측 상단
+          "기기 동기화"로 다른 기기와 공유할 수 있습니다.
         </footer>
       </main>
     </div>
