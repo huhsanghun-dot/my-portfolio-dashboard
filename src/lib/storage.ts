@@ -90,19 +90,53 @@ export function saveSnapshots(snapshots: Snapshot[]): void {
   writeJSON(KEYS.snapshots, snapshots)
 }
 
-/** Upserts today's snapshot with the latest total value (local date). */
+function parseDateStr(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function formatDateStr(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Upserts today's snapshot with the latest total value (local date). If one or
+ * more days were skipped since the last recorded snapshot (the app wasn't opened),
+ * those gap days are backfilled with that last known value carried forward, so
+ * the chart shows a flat line through the missed days instead of jumping
+ * straight from the last visit to today.
+ */
 export function upsertTodaySnapshot(totalValueKRW: number): Snapshot[] {
   const date = todayStr()
-  const snapshots = loadSnapshots()
-  const idx = snapshots.findIndex((s) => s.date === date)
+  const existing = loadSnapshots()
+  const last = existing.length > 0 ? existing[existing.length - 1] : null
+
+  const filled = [...existing]
+  if (last && last.date < date) {
+    let cursor = addDays(parseDateStr(last.date), 1)
+    const target = parseDateStr(date)
+    // Sanity cap so malformed date data can't spin this into a near-infinite loop.
+    for (let guard = 0; cursor < target && guard < 3650; guard += 1) {
+      filled.push({ date: formatDateStr(cursor), totalValueKRW: last.totalValueKRW, updatedAt: last.updatedAt })
+      cursor = addDays(cursor, 1)
+    }
+  }
+
+  const idx = filled.findIndex((s) => s.date === date)
   const entry: Snapshot = { date, totalValueKRW, updatedAt: Date.now() }
 
   let next: Snapshot[]
   if (idx >= 0) {
-    next = [...snapshots]
+    next = [...filled]
     next[idx] = entry
   } else {
-    next = [...snapshots, entry].sort((a, b) => a.date.localeCompare(b.date))
+    next = [...filled, entry].sort((a, b) => a.date.localeCompare(b.date))
   }
   saveSnapshots(next)
   return next
