@@ -251,7 +251,7 @@ function HoldingRow({
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{ASSET_TYPE_LABEL[h.type]}</span>
+              <span className="shrink-0 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{ASSET_TYPE_LABEL[h.type]}</span>
               <span className="font-medium text-white">{h.name}</span>
             </div>
             <div className="text-xs text-slate-500">
@@ -322,7 +322,7 @@ function HoldingRow({
     <tr className="border-b border-slate-800/60 last:border-0">
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{ASSET_TYPE_LABEL[h.type]}</span>
+          <span className="shrink-0 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{ASSET_TYPE_LABEL[h.type]}</span>
           <div>
             <div className="font-medium text-white">{h.name}</div>
             <div className="text-xs text-slate-500">{isCash ? h.currency : h.symbol}</div>
