@@ -1,6 +1,6 @@
 {
-  "name": "내 자산 대시보드",
-  "short_name": "자산 대시보드",
+  "name": "AssetNote",
+  "short_name": "AssetNote",
   "description": "해외 주식, 국내 주식, 암호화폐, 현금자산을 한 곳에서 추적하는 자산 대시보드",
   "start_url": "/my-portfolio-dashboard/",
   "scope": "/my-portfolio-dashboard/",
