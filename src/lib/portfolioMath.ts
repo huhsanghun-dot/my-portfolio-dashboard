@@ -94,3 +94,42 @@ export function groupByCategory(derivedList: DerivedHolding[]): CategoryGroup[] 
 
   return entries
 }
+
+export interface CategoryDayChange {
+  label: string
+  changeKRW: number
+  changePercent: number | null
+}
+
+/**
+ * Per-category day-over-day change, derived from each holding's own price
+ * source's changePercent (every price API already returns "change vs previous
+ * close") rather than a stored historical snapshot — so this works from day
+ * one with no separate tracking needed. Holdings with no known changePercent
+ * (manual entries, cash) simply don't contribute. Sorted by absolute change
+ * descending — biggest movers first.
+ */
+export function computeCategoryDayChanges(derivedList: DerivedHolding[]): CategoryDayChange[] {
+  const map = new Map<string, { changeKRW: number; prevValueKRW: number }>()
+
+  for (const d of derivedList) {
+    const changePercent = d.info?.changePercent
+    if (changePercent == null || d.currentValueKRW == null) continue
+    const prevValueKRW = d.currentValueKRW / (1 + changePercent / 100)
+    const changeKRW = d.currentValueKRW - prevValueKRW
+
+    const key = d.h.category?.trim() || ASSET_TYPE_LABEL[d.h.type] || UNCATEGORIZED
+    const entry = map.get(key) ?? { changeKRW: 0, prevValueKRW: 0 }
+    entry.changeKRW += changeKRW
+    entry.prevValueKRW += prevValueKRW
+    map.set(key, entry)
+  }
+
+  return [...map.entries()]
+    .map(([label, { changeKRW, prevValueKRW }]) => ({
+      label,
+      changeKRW,
+      changePercent: prevValueKRW > 0 ? (changeKRW / prevValueKRW) * 100 : null,
+    }))
+    .sort((a, b) => Math.abs(b.changeKRW) - Math.abs(a.changeKRW))
+}

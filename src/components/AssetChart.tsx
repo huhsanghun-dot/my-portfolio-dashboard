@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { Snapshot } from '../types'
 import { formatDateLabel, formatKRW, formatPercent } from '../lib/format'
+import type { CategoryDayChange } from '../lib/portfolioMath'
 
 interface Props {
   snapshots: Snapshot[]
   onReset: () => void
+  categoryDayChanges: CategoryDayChange[]
 }
 
 type PeriodKey = '1W' | '1M' | '3M' | 'ALL'
@@ -36,7 +38,7 @@ function ResetButton({ onReset }: { onReset: () => void }) {
   )
 }
 
-export function AssetChart({ snapshots, onReset }: Props) {
+export function AssetChart({ snapshots, onReset, categoryDayChanges }: Props) {
   const [period, setPeriod] = useState<PeriodKey>('1M')
 
   const filtered = useMemo(() => {
@@ -176,17 +178,37 @@ export function AssetChart({ snapshots, onReset }: Props) {
           </div>
 
           {dayChange && (
-            <div className="mt-3 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5">
-              <span className="text-xs text-slate-500">전일 대비</span>
-              <span
-                className={`text-sm font-semibold tabular-nums ${dayChange.changeKRW >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
-              >
-                {dayChange.changeKRW >= 0 ? '+' : ''}
-                {formatKRW(dayChange.changeKRW)}
-                {dayChange.changePercent != null && (
-                  <span className="ml-1.5 text-xs opacity-80">{formatPercent(dayChange.changePercent)}</span>
-                )}
-              </span>
+            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">전일 대비</span>
+                <span
+                  className={`text-sm font-semibold tabular-nums ${dayChange.changeKRW >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                >
+                  {dayChange.changeKRW >= 0 ? '+' : ''}
+                  {formatKRW(dayChange.changeKRW)}
+                  {dayChange.changePercent != null && (
+                    <span className="ml-1.5 text-xs opacity-80">{formatPercent(dayChange.changePercent)}</span>
+                  )}
+                </span>
+              </div>
+
+              {categoryDayChanges.length > 0 && (
+                <div className="mt-2.5 flex flex-col gap-1.5 border-t border-slate-800 pt-2.5">
+                  {categoryDayChanges.slice(0, 6).map((c) => {
+                    const up = c.changeKRW >= 0
+                    return (
+                      <div key={c.label} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="min-w-0 truncate text-slate-400">{c.label}</span>
+                        <span className={`shrink-0 tabular-nums ${up ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {up ? '+' : ''}
+                          {formatKRW(c.changeKRW)}
+                          {c.changePercent != null && <span className="ml-1 opacity-80">{formatPercent(c.changePercent)}</span>}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
         </>
