@@ -90,12 +90,12 @@ export function AssetChart({ snapshots, onReset, categoryDayChanges }: Props) {
 
   if (snapshots.length < 2) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+      <div className="flex h-full flex-col rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium text-slate-300">자산 변화 추이</h2>
           {snapshots.length > 0 && <ResetButton onReset={onReset} />}
         </div>
-        <div className="mt-6 flex h-48 items-center justify-center text-center text-sm text-slate-500">
+        <div className="mt-4 flex flex-1 min-h-[160px] items-center justify-center text-center text-sm text-slate-500">
           매일 접속하면 그날의 총 자산이 자동 기록되어 이 그래프에 쌓입니다.
         </div>
       </div>
@@ -106,7 +106,7 @@ export function AssetChart({ snapshots, onReset, categoryDayChanges }: Props) {
   const isUp = (stats?.returnKRW ?? 0) >= 0
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+    <div className="flex h-full flex-col rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="shrink-0 text-sm font-medium text-slate-300">자산 변화 추이</h2>
         <div className="flex flex-wrap items-center gap-2">
@@ -116,12 +116,12 @@ export function AssetChart({ snapshots, onReset, categoryDayChanges }: Props) {
       </div>
 
       {data.length < 2 || !stats ? (
-        <div className="mt-6 flex h-48 items-center justify-center text-center text-sm text-slate-500">
+        <div className="mt-4 flex flex-1 min-h-[160px] items-center justify-center text-center text-sm text-slate-500">
           선택한 기간에는 기록이 부족해요. 다른 기간을 선택해보세요.
         </div>
       ) : (
         <>
-          <div className="mt-3 h-56 sm:h-72">
+          <div className="mt-2.5 min-h-[140px] flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <defs>
@@ -150,20 +150,20 @@ export function AssetChart({ snapshots, onReset, categoryDayChanges }: Props) {
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
-            <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2.5 sm:p-3">
+          <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2 sm:p-2.5">
               <div className="text-[11px] text-slate-500">기간 최고</div>
               <div className="mt-0.5 truncate text-sm font-semibold tabular-nums text-white sm:text-base">
                 {formatKRW(stats.high)}
               </div>
             </div>
-            <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2.5 sm:p-3">
+            <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2 sm:p-2.5">
               <div className="text-[11px] text-slate-500">기간 최저</div>
               <div className="mt-0.5 truncate text-sm font-semibold tabular-nums text-white sm:text-base">
                 {formatKRW(stats.low)}
               </div>
             </div>
-            <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2.5 sm:p-3">
+            <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2 sm:p-2.5">
               <div className="text-[11px] text-slate-500">기간 수익률</div>
               <div className={`mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {isUp ? '+' : ''}
@@ -178,7 +178,7 @@ export function AssetChart({ snapshots, onReset, categoryDayChanges }: Props) {
           </div>
 
           {dayChange && (
-            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5">
+            <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500">전일 대비</span>
                 <span

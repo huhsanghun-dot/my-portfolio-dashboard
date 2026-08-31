@@ -84,9 +84,9 @@ export function CategoryDonutChart({ holdings, prices, fxRate }: Props) {
 
   if (allGroups.length === 0) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+      <div className="flex h-full flex-col rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
         <h2 className="text-sm font-medium text-slate-300">카테고리별 비중</h2>
-        <div className="mt-6 flex h-48 items-center justify-center text-sm text-slate-500">
+        <div className="mt-4 flex flex-1 min-h-[160px] items-center justify-center text-sm text-slate-500">
           시세가 반영된 자산이 있으면 비중이 여기 표시됩니다.
         </div>
       </div>
@@ -94,7 +94,7 @@ export function CategoryDonutChart({ holdings, prices, fxRate }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+    <div className="flex h-full flex-col rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-medium text-slate-300">카테고리별 비중</h2>
         {filterActive && (
@@ -130,11 +130,11 @@ export function CategoryDonutChart({ holdings, prices, fxRate }: Props) {
       </div>
 
       {total <= 0 ? (
-        <div className="mt-6 flex h-40 items-center justify-center text-center text-sm text-slate-500">
+        <div className="mt-4 flex flex-1 min-h-[160px] items-center justify-center text-center text-sm text-slate-500">
           선택한 카테고리에 해당하는 자산이 없어요.
         </div>
       ) : (
-        <div className="mt-4 flex flex-col items-center gap-5">
+        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-5">
           <div className="relative h-52 w-52 shrink-0 sm:h-56 sm:w-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
