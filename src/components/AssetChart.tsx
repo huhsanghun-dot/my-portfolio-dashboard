@@ -59,6 +59,16 @@ export function AssetChart({ snapshots, onReset }: Props) {
     return { high, low, returnKRW, returnPercent }
   }, [filtered])
 
+  // Always yesterday-vs-today, regardless of which period tab is selected.
+  const dayChange = useMemo(() => {
+    if (snapshots.length < 2) return null
+    const prev = snapshots[snapshots.length - 2].totalValueKRW
+    const last = snapshots[snapshots.length - 1].totalValueKRW
+    const changeKRW = last - prev
+    const changePercent = prev > 0 ? (changeKRW / prev) * 100 : null
+    return { changeKRW, changePercent }
+  }, [snapshots])
+
   const periodTabs = (
     <div className="flex shrink-0 gap-1 rounded-lg border border-slate-800 p-0.5 text-xs">
       {PERIODS.map((p) => (
@@ -164,6 +174,21 @@ export function AssetChart({ snapshots, onReset }: Props) {
               )}
             </div>
           </div>
+
+          {dayChange && (
+            <div className="mt-3 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5">
+              <span className="text-xs text-slate-500">전일 대비</span>
+              <span
+                className={`text-sm font-semibold tabular-nums ${dayChange.changeKRW >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+              >
+                {dayChange.changeKRW >= 0 ? '+' : ''}
+                {formatKRW(dayChange.changeKRW)}
+                {dayChange.changePercent != null && (
+                  <span className="ml-1.5 text-xs opacity-80">{formatPercent(dayChange.changePercent)}</span>
+                )}
+              </span>
+            </div>
+          )}
         </>
       )}
     </div>
