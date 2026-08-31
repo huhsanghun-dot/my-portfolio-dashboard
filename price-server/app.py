@@ -100,28 +100,63 @@ def us_stock():
         return jsonify(error=str(err)), 502
 
 
+def _fetch_kr_stock_naver(code):
+    """
+    Naver Finance's mobile quote endpoint, called server-side (no CORS
+    restriction applies to server-to-server calls, unlike calling it directly
+    from the browser). Near-real-time during market hours, unlike pykrx's
+    once-a-day close. Returns None on any failure so the caller can fall back.
+    """
+    try:
+        res = requests.get(
+            f"https://m.stock.naver.com/api/stock/{code}/basic",
+            headers={"User-Agent": "Mozilla/5.0 (compatible; AssetNoteBot/1.0)"},
+            timeout=8,
+        )
+        if not res.ok:
+            return None
+        data = res.json()
+        close_price = data.get("closePrice")
+        if not close_price:
+            return None
+        price = float(str(close_price).replace(",", ""))
+        change_raw = data.get("fluctuationsRatio")
+        change_percent = float(str(change_raw).replace(",", "")) if change_raw not in (None, "") else None
+        return {"price": price, "changePercent": change_percent}
+    except Exception:  # noqa: BLE001 - any failure here just means "try the next source"
+        return None
+
+
+def _fetch_kr_stock_pykrx(code):
+    """Falls back to pykrx's daily close (KRX statistics data, updated once/day) when Naver is unavailable."""
+    today = datetime.now()
+    df = None
+    # Walk back up to 7 days to skip weekends/holidays with no trading data.
+    for days_back in range(7):
+        day = (today - timedelta(days=days_back)).strftime("%Y%m%d")
+        candidate = stock.get_market_ohlcv_by_date(day, day, code)
+        if candidate is not None and not candidate.empty:
+            df = candidate
+            break
+    if df is None:
+        return None
+
+    row = df.iloc[-1]
+    price = float(row["종가"])
+    change_percent = float(row["등락률"]) if "등락률" in df.columns else None
+    return {"price": price, "changePercent": change_percent}
+
+
 @app.get("/api/kr-stock")
 def kr_stock():
     code = request.args.get("code")
     if not code:
         return jsonify(error="code is required"), 400
     try:
-        today = datetime.now()
-        df = None
-        # Walk back up to 7 days to skip weekends/holidays with no trading data.
-        for days_back in range(7):
-            day = (today - timedelta(days=days_back)).strftime("%Y%m%d")
-            candidate = stock.get_market_ohlcv_by_date(day, day, code)
-            if candidate is not None and not candidate.empty:
-                df = candidate
-                break
-        if df is None:
+        result = _fetch_kr_stock_naver(code) or _fetch_kr_stock_pykrx(code)
+        if result is None:
             return jsonify(error="no price data found"), 404
-
-        row = df.iloc[-1]
-        price = float(row["종가"])
-        change_percent = float(row["등락률"]) if "등락률" in df.columns else None
-        return jsonify(price=price, changePercent=change_percent)
+        return jsonify(**result)
     except Exception as err:  # noqa: BLE001 - report upstream failure to caller
         return jsonify(error=str(err)), 502
 
