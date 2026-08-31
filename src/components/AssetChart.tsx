@@ -150,22 +150,22 @@ export function AssetChart({ snapshots, onReset, categoryDayChanges }: Props) {
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
             <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2 sm:p-2.5">
               <div className="text-[11px] text-slate-500">기간 최고</div>
-              <div className="mt-0.5 truncate text-sm font-semibold tabular-nums text-white sm:text-base">
+              <div className="mt-0.5 text-sm font-semibold tabular-nums text-white sm:text-base">
                 {formatKRW(stats.high)}
               </div>
             </div>
             <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2 sm:p-2.5">
               <div className="text-[11px] text-slate-500">기간 최저</div>
-              <div className="mt-0.5 truncate text-sm font-semibold tabular-nums text-white sm:text-base">
+              <div className="mt-0.5 text-sm font-semibold tabular-nums text-white sm:text-base">
                 {formatKRW(stats.low)}
               </div>
             </div>
-            <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2 sm:p-2.5">
+            <div className="col-span-2 min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2 sm:col-span-1 sm:p-2.5">
               <div className="text-[11px] text-slate-500">기간 수익률</div>
-              <div className={`mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <div className={`mt-0.5 text-sm font-semibold tabular-nums sm:text-base ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {isUp ? '+' : ''}
                 {formatKRW(stats.returnKRW)}
               </div>
