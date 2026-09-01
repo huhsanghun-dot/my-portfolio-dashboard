@@ -133,3 +133,33 @@ export function computeCategoryDayChanges(derivedList: DerivedHolding[]): Catego
     }))
     .sort((a, b) => Math.abs(b.changeKRW) - Math.abs(a.changeKRW))
 }
+
+export interface DayChange {
+  changeKRW: number
+  changePercent: number | null
+}
+
+/**
+ * Total day-over-day change, computed the same way as computeCategoryDayChanges
+ * (summed across all holdings, not grouped) so the two always reconcile exactly
+ * — unlike diffing snapshot totals, which would also fold in FX-rate movement
+ * and any deposits/trades made since the last visit, and so wouldn't match a
+ * price-only breakdown.
+ */
+export function computeTotalDayChange(derivedList: DerivedHolding[]): DayChange | null {
+  let changeKRW = 0
+  let prevValueKRW = 0
+  let any = false
+
+  for (const d of derivedList) {
+    const changePercent = d.info?.changePercent
+    if (changePercent == null || d.currentValueKRW == null) continue
+    any = true
+    const prev = d.currentValueKRW / (1 + changePercent / 100)
+    changeKRW += d.currentValueKRW - prev
+    prevValueKRW += prev
+  }
+
+  if (!any) return null
+  return { changeKRW, changePercent: prevValueKRW > 0 ? (changeKRW / prevValueKRW) * 100 : null }
+}

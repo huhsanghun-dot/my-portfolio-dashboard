@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { Snapshot } from '../types'
 import { formatDateLabel, formatKRW, formatPercent } from '../lib/format'
-import type { CategoryDayChange } from '../lib/portfolioMath'
+import type { CategoryDayChange, DayChange } from '../lib/portfolioMath'
 
 interface Props {
   snapshots: Snapshot[]
   onReset: () => void
+  dayChange: DayChange | null
   categoryDayChanges: CategoryDayChange[]
 }
 
@@ -38,7 +39,7 @@ function ResetButton({ onReset }: { onReset: () => void }) {
   )
 }
 
-export function AssetChart({ snapshots, onReset, categoryDayChanges }: Props) {
+export function AssetChart({ snapshots, onReset, dayChange, categoryDayChanges }: Props) {
   const [period, setPeriod] = useState<PeriodKey>('1M')
 
   const filtered = useMemo(() => {
@@ -60,16 +61,6 @@ export function AssetChart({ snapshots, onReset, categoryDayChanges }: Props) {
     const returnPercent = first > 0 ? (returnKRW / first) * 100 : null
     return { high, low, returnKRW, returnPercent }
   }, [filtered])
-
-  // Always yesterday-vs-today, regardless of which period tab is selected.
-  const dayChange = useMemo(() => {
-    if (snapshots.length < 2) return null
-    const prev = snapshots[snapshots.length - 2].totalValueKRW
-    const last = snapshots[snapshots.length - 1].totalValueKRW
-    const changeKRW = last - prev
-    const changePercent = prev > 0 ? (changeKRW / prev) * 100 : null
-    return { changeKRW, changePercent }
-  }, [snapshots])
 
   const periodTabs = (
     <div className="flex shrink-0 gap-1 rounded-lg border border-slate-800 p-0.5 text-xs">

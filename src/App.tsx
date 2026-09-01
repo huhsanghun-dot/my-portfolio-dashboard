@@ -5,7 +5,7 @@ import { HoldingsList } from './components/HoldingsList'
 import { SummaryCards } from './components/SummaryCards'
 import { SyncPanel } from './components/SyncPanel'
 import { usePortfolio } from './hooks/usePortfolio'
-import { computeCategoryDayChanges, deriveAllHoldings } from './lib/portfolioMath'
+import { computeCategoryDayChanges, computeTotalDayChange, deriveAllHoldings } from './lib/portfolioMath'
 
 function App() {
   const {
@@ -36,7 +36,9 @@ function App() {
   const existingCategories = [...new Set(holdings.map((h) => h.category?.trim()).filter((c): c is string => !!c))].sort(
     (a, b) => a.localeCompare(b),
   )
-  const categoryDayChanges = computeCategoryDayChanges(deriveAllHoldings(holdings, prices, fxRate))
+  const derivedHoldings = deriveAllHoldings(holdings, prices, fxRate)
+  const categoryDayChanges = computeCategoryDayChanges(derivedHoldings)
+  const totalDayChange = computeTotalDayChange(derivedHoldings)
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -68,7 +70,12 @@ function App() {
         />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <AssetChart snapshots={snapshots} onReset={resetSnapshots} categoryDayChanges={categoryDayChanges} />
+          <AssetChart
+            snapshots={snapshots}
+            onReset={resetSnapshots}
+            dayChange={totalDayChange}
+            categoryDayChanges={categoryDayChanges}
+          />
           <CategoryDonutChart holdings={holdings} prices={prices} fxRate={fxRate} />
         </div>
 
