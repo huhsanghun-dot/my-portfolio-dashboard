@@ -22,14 +22,40 @@ function formatNative(value: number, currency: Holding['currency']) {
   return currency === 'USD' ? formatUSD(value) : formatKRW(value)
 }
 
-/** Shrinks the font size as the name gets longer, so it stays on one line without ellipsis-clipping. */
+/**
+ * Estimates a name's rendered width in em, weighting by character type — plain
+ * character-count isn't a good proxy since Hangul glyphs render roughly twice
+ * as wide as Latin/digits, so a Latin-heavy name was getting shrunk as
+ * aggressively as an equal-length Korean one for no reason.
+ */
+function estimatedNameWidthEm(name: string): number {
+  let width = 0
+  for (const ch of name) {
+    if (ch === ' ') width += 0.3
+    else if (/[0-9A-Za-z]/.test(ch)) width += 0.58
+    else if (/[ㄱ-힣]/.test(ch)) width += 1.05 // Hangul jamo/syllables
+    else width += 0.75
+  }
+  return width
+}
+
+// Card width on a phone leaves roughly this many CSS px for the name row.
+const NAME_ROW_BUDGET_PX = 340
+
+/** Picks the largest font size whose estimated width still fits on one line, so names only shrink as much as they actually need to. */
 function nameFontSizeClass(name: string): string {
-  const len = name.length
-  if (len <= 11) return 'text-sm'
-  if (len <= 15) return 'text-[13px]'
-  if (len <= 19) return 'text-xs'
-  if (len <= 25) return 'text-[11px]'
-  if (len <= 32) return 'text-[10px]'
+  const widthEm = estimatedNameWidthEm(name)
+  const sizes: [string, number][] = [
+    ['text-base', 16],
+    ['text-sm', 14],
+    ['text-[13px]', 13],
+    ['text-xs', 12],
+    ['text-[11px]', 11],
+    ['text-[10px]', 10],
+  ]
+  for (const [cls, px] of sizes) {
+    if (widthEm * px <= NAME_ROW_BUDGET_PX) return cls
+  }
   return 'text-[9px]'
 }
 
