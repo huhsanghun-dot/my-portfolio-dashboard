@@ -1,4 +1,4 @@
-import type { HoldingIdentity, Snapshot, Transaction } from '../types'
+import type { HoldingIdentity, PriceInfo, Snapshot, Transaction } from '../types'
 import { genId } from './id'
 import { todayStr } from './positions'
 
@@ -7,6 +7,7 @@ const KEYS = {
   transactions: 'pf-dashboard:transactions:v1',
   snapshots: 'pf-dashboard:snapshots:v1',
   syncCode: 'pf-dashboard:sync-code:v1',
+  prices: 'pf-dashboard:prices:v1',
 } as const
 
 function readJSON<T>(key: string, fallback: T): T {
@@ -140,6 +141,20 @@ export function upsertTodaySnapshot(totalValueKRW: number): Snapshot[] {
   }
   saveSnapshots(next)
   return next
+}
+
+/**
+ * Last-known price per holding, cached so the app can render real-looking
+ * values immediately on load instead of a blank/loading state while the
+ * network refresh (which can take several seconds against the free-tier
+ * price server) is still in flight.
+ */
+export function loadPrices(): Record<string, PriceInfo> {
+  return readJSON<Record<string, PriceInfo>>(KEYS.prices, {})
+}
+
+export function savePrices(prices: Record<string, PriceInfo>): void {
+  writeJSON(KEYS.prices, prices)
 }
 
 /** The device's linked cross-device sync code, if any (see lib/api/sync.ts). */

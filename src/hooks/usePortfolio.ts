@@ -7,11 +7,13 @@ import { genId } from '../lib/id'
 import { computeAllHoldings, computePosition, todayStr, transactionsFor } from '../lib/positions'
 import {
   loadHoldingIdentities,
+  loadPrices,
   loadSnapshots,
   loadSyncCode,
   loadTransactions,
   migrateLegacyHoldingsToTransactions,
   saveHoldingIdentities,
+  savePrices,
   saveSnapshots,
   saveSyncCode,
   saveTransactions,
@@ -57,7 +59,7 @@ export function usePortfolio() {
     const existing = loadTransactions()
     return migrateLegacyHoldingsToTransactions(raw, existing)
   })
-  const [prices, setPrices] = useState<Record<string, PriceInfo>>({})
+  const [prices, setPrices] = useState<Record<string, PriceInfo>>(() => loadPrices())
   const [fxRate, setFxRate] = useState<number>(FALLBACK_USD_KRW)
   const [fxUpdatedAt, setFxUpdatedAt] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -78,6 +80,7 @@ export function usePortfolio() {
 
   useEffect(() => saveHoldingIdentities(identities), [identities])
   useEffect(() => saveTransactions(transactions), [transactions])
+  useEffect(() => savePrices(prices), [prices])
 
   const adoptSyncState = useCallback((state: SyncState) => {
     setIdentities(state.identities ?? [])
