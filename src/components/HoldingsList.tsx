@@ -140,7 +140,7 @@ export function HoldingsList({
               <tbody key={g.label}>
                 <tr className={`border-b border-slate-800 bg-slate-800/40 ${i > 0 ? 'border-t-2 border-t-slate-700' : ''}`}>
                   <td colSpan={7} className="px-4 py-3.5">
-                    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 border-l-4 border-indigo-500/70 pl-3">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-l-4 border-indigo-500/70 pl-3">
                       <div className="flex items-baseline gap-2">
                         <span className="text-base font-bold tracking-tight text-white">{g.label}</span>
                         <span className="text-xs text-slate-500">{g.items.length}개 종목</span>
@@ -179,7 +179,7 @@ export function HoldingsList({
         {grouped
           ? groups.map((g, i) => (
               <div key={g.label} className={`flex flex-col gap-2 ${i > 0 ? 'mt-2 border-t border-slate-800 pt-5' : ''}`}>
-                <div className="flex items-start justify-between gap-2 rounded-lg bg-slate-800/40 py-2 pl-3 pr-2.5">
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-800/40 py-2 pl-3 pr-2.5">
                   <div className="flex items-baseline gap-2 border-l-4 border-indigo-500/70 pl-2.5">
                     <span className="text-base font-bold tracking-tight text-white">{g.label}</span>
                     <span className="text-xs text-slate-500">{g.items.length}개</span>
