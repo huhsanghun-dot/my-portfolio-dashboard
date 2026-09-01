@@ -25,11 +25,12 @@ function formatNative(value: number, currency: Holding['currency']) {
 /** Shrinks the font size as the name gets longer, so it stays on one line without ellipsis-clipping. */
 function nameFontSizeClass(name: string): string {
   const len = name.length
-  if (len <= 7) return 'text-sm'
-  if (len <= 10) return 'text-[13px]'
-  if (len <= 13) return 'text-xs'
-  if (len <= 17) return 'text-[11px]'
-  return 'text-[10px]'
+  if (len <= 11) return 'text-sm'
+  if (len <= 15) return 'text-[13px]'
+  if (len <= 19) return 'text-xs'
+  if (len <= 25) return 'text-[11px]'
+  if (len <= 32) return 'text-[10px]'
+  return 'text-[9px]'
 }
 
 function GroupPnl({ pnlKRW, pnlPercent }: { pnlKRW: number | null; pnlPercent: number | null }) {
@@ -258,16 +259,8 @@ function HoldingRow({
   if (variant === 'card') {
     return (
       <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span className="shrink-0 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{ASSET_TYPE_LABEL[h.type]}</span>
-              <span className={`min-w-0 whitespace-nowrap font-medium text-white ${nameFontSizeClass(h.name)}`}>{h.name}</span>
-            </div>
-            <div className="truncate text-xs text-slate-500">
-              {isCash ? h.currency : `${h.symbol} · ${formatNumber(h.quantity)}주/개`}
-            </div>
-          </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="shrink-0 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{ASSET_TYPE_LABEL[h.type]}</span>
           <div className="flex shrink-0 items-center gap-2">
             <button type="button" onClick={() => onOpenTransactions(h.id)} className="text-xs text-indigo-400 hover:text-indigo-300">
               거래내역
@@ -276,6 +269,10 @@ function HoldingRow({
               삭제
             </button>
           </div>
+        </div>
+        <div className={`mt-1.5 overflow-hidden whitespace-nowrap font-medium text-white ${nameFontSizeClass(h.name)}`}>{h.name}</div>
+        <div className="truncate text-xs text-slate-500">
+          {isCash ? h.currency : `${h.symbol} · ${formatNumber(h.quantity)}주/개`}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           {isCash ? (
