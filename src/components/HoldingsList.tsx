@@ -248,13 +248,15 @@ function HoldingRow({
   if (variant === 'card') {
     return (
       <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-1.5">
               <span className="shrink-0 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{ASSET_TYPE_LABEL[h.type]}</span>
-              <span className="font-medium text-white">{h.name}</span>
+              <span className="truncate text-sm font-medium text-white" title={h.name}>
+                {h.name}
+              </span>
             </div>
-            <div className="text-xs text-slate-500">
+            <div className="truncate text-xs text-slate-500">
               {isCash ? h.currency : `${h.symbol} · ${formatNumber(h.quantity)}주/개`}
             </div>
           </div>
