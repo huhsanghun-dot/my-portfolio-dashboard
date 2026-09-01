@@ -22,6 +22,16 @@ function formatNative(value: number, currency: Holding['currency']) {
   return currency === 'USD' ? formatUSD(value) : formatKRW(value)
 }
 
+/** Shrinks the font size as the name gets longer, so it stays on one line without ellipsis-clipping. */
+function nameFontSizeClass(name: string): string {
+  const len = name.length
+  if (len <= 7) return 'text-sm'
+  if (len <= 10) return 'text-[13px]'
+  if (len <= 13) return 'text-xs'
+  if (len <= 17) return 'text-[11px]'
+  return 'text-[10px]'
+}
+
 function GroupPnl({ pnlKRW, pnlPercent }: { pnlKRW: number | null; pnlPercent: number | null }) {
   if (pnlKRW == null) return null
   const isUp = pnlKRW >= 0
@@ -252,9 +262,7 @@ function HoldingRow({
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="shrink-0 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{ASSET_TYPE_LABEL[h.type]}</span>
-              <span className="truncate text-sm font-medium text-white" title={h.name}>
-                {h.name}
-              </span>
+              <span className={`min-w-0 whitespace-nowrap font-medium text-white ${nameFontSizeClass(h.name)}`}>{h.name}</span>
             </div>
             <div className="truncate text-xs text-slate-500">
               {isCash ? h.currency : `${h.symbol} · ${formatNumber(h.quantity)}주/개`}
