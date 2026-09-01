@@ -293,10 +293,10 @@ export function usePortfolio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Auto-refresh loop for stock/crypto (KRX is intentionally left to page-load + manual refresh).
+  // Auto-refresh loop for everything with a live price source (cash has none, so it's excluded).
   useEffect(() => {
     const interval = setInterval(() => {
-      const liveTargets = holdingsRef.current.filter((h) => h.type === 'US_STOCK' || h.type === 'CRYPTO')
+      const liveTargets = holdingsRef.current.filter((h) => h.type !== 'CASH')
       void refreshPricesFor(liveTargets)
       void refreshFx()
     }, REFRESH_MS)
