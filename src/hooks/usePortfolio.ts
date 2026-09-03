@@ -11,6 +11,7 @@ import {
   loadSnapshots,
   loadSyncCode,
   loadTransactions,
+  mergeSnapshots,
   migrateLegacyHoldingsToTransactions,
   saveHoldingIdentities,
   savePrices,
@@ -85,10 +86,14 @@ export function usePortfolio() {
   const adoptSyncState = useCallback((state: SyncState) => {
     setIdentities(state.identities ?? [])
     setTransactions(state.transactions ?? [])
-    setSnapshots(state.snapshots ?? [])
     saveHoldingIdentities(state.identities ?? [])
     saveTransactions(state.transactions ?? [])
-    saveSnapshots(state.snapshots ?? [])
+    // Merge rather than overwrite: a stale sync store (its last push never
+    // completed before the tab closed) shouldn't be able to revert history
+    // this device already recorded more recently.
+    const merged = mergeSnapshots(snapshotsRef.current, state.snapshots ?? [])
+    setSnapshots(merged)
+    saveSnapshots(merged)
   }, [])
 
   const linkSync = useCallback(

@@ -157,6 +157,23 @@ export function savePrices(prices: Record<string, PriceInfo>): void {
   writeJSON(KEYS.prices, prices)
 }
 
+/**
+ * Merges two snapshot histories by date, keeping whichever side's entry for
+ * a given date was written more recently (Snapshot.updatedAt). Used when
+ * pulling synced state from another device: a plain overwrite would let a
+ * stale sync store (e.g. one whose last push never completed before the tab
+ * closed) silently revert already-recorded history on this device.
+ */
+export function mergeSnapshots(a: Snapshot[], b: Snapshot[]): Snapshot[] {
+  const map = new Map<string, Snapshot>()
+  for (const s of a) map.set(s.date, s)
+  for (const s of b) {
+    const existing = map.get(s.date)
+    if (!existing || s.updatedAt > existing.updatedAt) map.set(s.date, s)
+  }
+  return [...map.values()].sort((x, y) => x.date.localeCompare(y.date))
+}
+
 /** The device's linked cross-device sync code, if any (see lib/api/sync.ts). */
 export function loadSyncCode(): string | null {
   return readJSON<string | null>(KEYS.syncCode, null)
