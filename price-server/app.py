@@ -95,15 +95,29 @@ def us_stock():
     try:
         # history() pulls from Yahoo's chart API and is far more stable across
         # Yahoo's response-format changes than fast_info's summary parsing.
-        hist = yf.Ticker(symbol).history(period="5d")
-        closes = hist["Close"].dropna() if not hist.empty else hist
-        if closes.empty:
+        ticker = yf.Ticker(symbol)
+        daily = ticker.history(period="5d")
+        daily_closes = daily["Close"].dropna() if not daily.empty else daily
+        if daily_closes.empty:
             return jsonify(error="no price data found"), 404
 
-        price = float(closes.iloc[-1])
-        change_percent = None
-        if len(closes) >= 2 and closes.iloc[-2]:
-            change_percent = (price - closes.iloc[-2]) / closes.iloc[-2] * 100
+        price = float(daily_closes.iloc[-1])
+        previous_close = float(daily_closes.iloc[-2]) if len(daily_closes) >= 2 else None
+
+        # The daily bar's "today" row doesn't always tick during the session on
+        # Yahoo's end — seen lagging by hours on fast-moving leveraged ETFs.
+        # A 1-minute intraday bar is much closer to the live traded price, so
+        # prefer its latest close for the price shown when it's available.
+        # changePercent still anchors to the real previous daily close above.
+        try:
+            intraday = ticker.history(period="1d", interval="1m")
+            intraday_closes = intraday["Close"].dropna() if not intraday.empty else intraday
+            if not intraday_closes.empty:
+                price = float(intraday_closes.iloc[-1])
+        except Exception:  # noqa: BLE001 - fall back to the daily bar's price
+            pass
+
+        change_percent = (price - previous_close) / previous_close * 100 if previous_close else None
         return jsonify(price=price, changePercent=change_percent)
     except Exception as err:  # noqa: BLE001 - report upstream failure to caller
         return jsonify(error=str(err)), 502
