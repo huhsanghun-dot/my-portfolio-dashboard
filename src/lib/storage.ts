@@ -112,6 +112,11 @@ function formatDateStr(date: Date): string {
  * those gap days are backfilled with that last known value carried forward, so
  * the chart shows a flat line through the missed days instead of jumping
  * straight from the last visit to today.
+ *
+ * Today's highValueKRW/lowValueKRW ratchet against every value seen so far
+ * today, so a peak/trough already reached sticks even if the price later
+ * moves back the other way — otherwise 기간 최고/최저 would just reflect
+ * whatever totalValueKRW happens to be at the moment you last looked.
  */
 export function upsertTodaySnapshot(totalValueKRW: number): Snapshot[] {
   const date = todayStr()
@@ -124,13 +129,26 @@ export function upsertTodaySnapshot(totalValueKRW: number): Snapshot[] {
     const target = parseDateStr(date)
     // Sanity cap so malformed date data can't spin this into a near-infinite loop.
     for (let guard = 0; cursor < target && guard < 3650; guard += 1) {
-      filled.push({ date: formatDateStr(cursor), totalValueKRW: last.totalValueKRW, updatedAt: last.updatedAt })
+      filled.push({
+        date: formatDateStr(cursor),
+        totalValueKRW: last.totalValueKRW,
+        highValueKRW: last.totalValueKRW,
+        lowValueKRW: last.totalValueKRW,
+        updatedAt: last.updatedAt,
+      })
       cursor = addDays(cursor, 1)
     }
   }
 
   const idx = filled.findIndex((s) => s.date === date)
-  const entry: Snapshot = { date, totalValueKRW, updatedAt: Date.now() }
+  const todayExisting = idx >= 0 ? filled[idx] : null
+  const entry: Snapshot = {
+    date,
+    totalValueKRW,
+    highValueKRW: Math.max(todayExisting?.highValueKRW ?? todayExisting?.totalValueKRW ?? totalValueKRW, totalValueKRW),
+    lowValueKRW: Math.min(todayExisting?.lowValueKRW ?? todayExisting?.totalValueKRW ?? totalValueKRW, totalValueKRW),
+    updatedAt: Date.now(),
+  }
 
   let next: Snapshot[]
   if (idx >= 0) {

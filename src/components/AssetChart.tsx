@@ -53,8 +53,11 @@ export function AssetChart({ snapshots, onReset, dayChange, categoryDayChanges }
   const stats = useMemo(() => {
     if (filtered.length === 0) return null
     const values = filtered.map((s) => s.totalValueKRW)
-    const high = Math.max(...values)
-    const low = Math.min(...values)
+    // High/low use each day's ratcheted extremes (falling back to totalValueKRW
+    // for snapshots recorded before that field existed) so a peak/trough already
+    // reached today doesn't get erased by a later intraday move the other way.
+    const high = Math.max(...filtered.map((s) => s.highValueKRW ?? s.totalValueKRW))
+    const low = Math.min(...filtered.map((s) => s.lowValueKRW ?? s.totalValueKRW))
     const first = values[0]
     const last = values[values.length - 1]
     const returnKRW = last - first

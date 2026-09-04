@@ -49,6 +49,10 @@ export interface PriceInfo {
 export interface Snapshot {
   /** yyyy-MM-dd, local date */
   date: string
+  /** Total value as of the last update that day — what the trend line plots. */
   totalValueKRW: number
+  /** Highest/lowest total value seen so far on this date (ratchets as the day's price updates arrive), so a day's recorded high/low survives later intraday drops/rises instead of being overwritten by whatever the latest value happens to be. Falls back to totalValueKRW for snapshots recorded before this field existed. */
+  highValueKRW?: number
+  lowValueKRW?: number
   updatedAt: number
 }
