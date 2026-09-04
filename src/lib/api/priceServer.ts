@@ -9,7 +9,7 @@ interface ServerQuote {
 
 async function fetchFromServer(path: string): Promise<PriceInfo> {
   try {
-    const res = await fetch(`${PRICE_SERVER_BASE_URL}${path}`)
+    const res = await fetch(`${PRICE_SERVER_BASE_URL}${path}`, { cache: 'no-store' })
     const data = (await res.json()) as ServerQuote
     if (!res.ok || data.price == null) {
       return { price: null, changePercent: null, updatedAt: null, source: 'none', error: data.error ?? '자동 조회 실패' }

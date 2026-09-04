@@ -38,6 +38,15 @@ ALLOWED_ORIGINS = [
 CORS(app, origins=ALLOWED_ORIGINS)
 
 
+@app.after_request
+def add_no_store(response):
+    # Quotes must never be served from an intermediate cache (CDN, mobile
+    # browser's aggressive GET caching, etc.) — every request should hit
+    # this process and its live upstream call, not a stale cached copy.
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.get("/health")
 def health():
     return jsonify(ok=True)
