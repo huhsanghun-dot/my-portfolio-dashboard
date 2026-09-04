@@ -103,22 +103,35 @@ def us_stock():
 
         price = float(daily_closes.iloc[-1])
         previous_close = float(daily_closes.iloc[-2]) if len(daily_closes) >= 2 else None
+        price_source = "daily"
+        price_as_of = daily_closes.index[-1].isoformat()
 
         # The daily bar's "today" row doesn't always tick during the session on
         # Yahoo's end — seen lagging by hours on fast-moving leveraged ETFs.
         # A 1-minute intraday bar is much closer to the live traded price, so
         # prefer its latest close for the price shown when it's available.
         # changePercent still anchors to the real previous daily close above.
+        intraday_error = None
         try:
             intraday = ticker.history(period="1d", interval="1m")
             intraday_closes = intraday["Close"].dropna() if not intraday.empty else intraday
             if not intraday_closes.empty:
                 price = float(intraday_closes.iloc[-1])
-        except Exception:  # noqa: BLE001 - fall back to the daily bar's price
-            pass
+                price_source = "intraday"
+                price_as_of = intraday_closes.index[-1].isoformat()
+            else:
+                intraday_error = "empty intraday series"
+        except Exception as err:  # noqa: BLE001 - fall back to the daily bar's price
+            intraday_error = str(err)
 
         change_percent = (price - previous_close) / previous_close * 100 if previous_close else None
-        return jsonify(price=price, changePercent=change_percent)
+        return jsonify(
+            price=price,
+            changePercent=change_percent,
+            priceSource=price_source,
+            priceAsOf=price_as_of,
+            intradayError=intraday_error,
+        )
     except Exception as err:  # noqa: BLE001 - report upstream failure to caller
         return jsonify(error=str(err)), 502
 
