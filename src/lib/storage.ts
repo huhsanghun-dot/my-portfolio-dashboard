@@ -83,8 +83,29 @@ export function migrateLegacyHoldingsToTransactions(
   return merged
 }
 
+/**
+ * Clamps a snapshot's ratcheted high/low back to its own totalValueKRW when
+ * they deviate implausibly (e.g. a holding's price fetch failing understated
+ * totalValueKRW for one refresh cycle, and that understated total got
+ * ratcheted in as a permanent — but false — 기간 최저/최고). A real single-day
+ * portfolio move rarely halves or doubles the total, so anything past that
+ * is treated as a leftover data glitch rather than a genuine extreme.
+ */
+function sanitizeSnapshot(s: Snapshot): Snapshot {
+  let { highValueKRW, lowValueKRW } = s
+  if (s.totalValueKRW > 0) {
+    if (lowValueKRW != null && lowValueKRW < s.totalValueKRW * 0.5) lowValueKRW = s.totalValueKRW
+    if (highValueKRW != null && highValueKRW > s.totalValueKRW * 2) highValueKRW = s.totalValueKRW
+  }
+  if (lowValueKRW === s.lowValueKRW && highValueKRW === s.highValueKRW) return s
+  return { ...s, highValueKRW, lowValueKRW }
+}
+
 export function loadSnapshots(): Snapshot[] {
-  return readJSON<Snapshot[]>(KEYS.snapshots, [])
+  const raw = readJSON<Snapshot[]>(KEYS.snapshots, [])
+  const sanitized = raw.map(sanitizeSnapshot)
+  if (sanitized.some((s, i) => s !== raw[i])) saveSnapshots(sanitized)
+  return sanitized
 }
 
 export function saveSnapshots(snapshots: Snapshot[]): void {

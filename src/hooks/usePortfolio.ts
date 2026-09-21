@@ -262,7 +262,19 @@ export function usePortfolio() {
       )
       setPrices((prev) => {
         const next = { ...prev }
-        for (const [id, info] of results) next[id] = info
+        for (const [id, info] of results) {
+          // A failed refresh shouldn't blank out an already-known-good price —
+          // that would drop the holding from totalValueKRW entirely (see
+          // effectivePrice), understating the portfolio total for as long as
+          // the fetch keeps failing, and with the snapshot high/low ratchet
+          // that understated total could get permanently locked in as a false
+          // 기간 최저. Keep the last good price and just surface the error.
+          if (info.price == null && prev[id]?.price != null) {
+            next[id] = { ...prev[id], error: info.error }
+          } else {
+            next[id] = info
+          }
+        }
         return next
       })
       // For KR ETFs, a successful auto-fetch refreshes the persisted manual price too,
